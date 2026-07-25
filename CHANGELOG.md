@@ -1,3 +1,10 @@
+## [1.12.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.12.0...v1.12.1) (2026-07-25)
+
+
+### Bug Fixes
+
+* **dashboard:** refresh on first paint and break the document.write loop ([71f3b00](https://github.com/kodingvibes/late.kodingvibes.com/commit/71f3b00ac1d4388bd52c931ecc5e44252e895054))
+
 # [1.12.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.11.0...v1.12.0) (2026-07-25)
 
 
