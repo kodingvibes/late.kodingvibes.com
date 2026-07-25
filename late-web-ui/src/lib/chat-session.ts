@@ -48,11 +48,22 @@ export function getSavedSession(): LateSession | null {
 export function saveSession(s: LateSession) {
   localStorage.setItem(SESSION_KEY, JSON.stringify(s));
   if (localStorage.getItem(LEGACY_KEY)) localStorage.removeItem(LEGACY_KEY);
+  // ponytail: localStorage writes do NOT fire the `storage`
+  // event in the same window that wrote them, so a hook on
+  // `storage` (like the UserMenu) only reacts to cross-tab
+  // updates. Dispatch a custom event alongside the write
+  // so same-window subscribers update without a hard reload.
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("late:session-change"));
+  }
 }
 
 export function clearSession() {
   localStorage.removeItem(SESSION_KEY);
   localStorage.removeItem(LEGACY_KEY);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("late:session-change"));
+  }
 }
 
 export function clearSsoBudget() {

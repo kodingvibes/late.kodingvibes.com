@@ -32,14 +32,15 @@ export default function SiteHeader() {
   const baseLink = isLight
     ? "text-slate-500 hover:text-slate-900 hover:bg-slate-200"
     : "text-slate-400 hover:text-slate-100 hover:bg-slate-800";
-  const activeLink = isLight
-    ? "bg-accent/15 text-accent"
-    : "bg-accent/15 text-accent";
+  const activeLink =
+    "bg-accent/15 text-accent ring-1 ring-accent/30 shadow-accent";
 
   return (
     <header
       className={`sticky top-0 z-40 backdrop-blur border-b ${
-        isLight ? "bg-white/80 border-slate-200" : "bg-slate-950/80 border-slate-800"
+        isLight
+          ? "bg-white/80 border-accent/20"
+          : "bg-slate-950/80 border-accent/20"
       }`}
     >
       <div className="max-w-7xl mx-auto px-3 sm:px-6 h-11 sm:h-14 flex items-center justify-between gap-2 sm:gap-3">

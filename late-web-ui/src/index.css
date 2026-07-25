@@ -449,12 +449,88 @@ input[type="range"] {
 .focus\:border-accent:focus { border-color: var(--accent-primary, #6366f1); }
 
 /* Translucent accent (used for the active nav pill). */
+.bg-accent\/5 { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 5%, transparent); }
+.bg-accent\/8 { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 8%, transparent); }
 .bg-accent\/15 { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 15%, transparent); }
 .bg-accent\/20 { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 20%, transparent); }
 .bg-accent\/30 { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 30%, transparent); }
+.bg-accent\/40 { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 40%, transparent); }
+.bg-accent\/50 { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 50%, transparent); }
 .text-accent\/80 { color: color-mix(in srgb, var(--accent-primary, #6366f1) 80%, transparent); }
 .text-accent\/90 { color: color-mix(in srgb, var(--accent-primary, #6366f1) 90%, transparent); }
 .ring-accent\/30 { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary, #6366f1) 30%, transparent); }
+.border-accent\/15 { border-color: color-mix(in srgb, var(--accent-primary, #6366f1) 15%, transparent); }
+.border-accent\/30 { border-color: color-mix(in srgb, var(--accent-primary, #6366f1) 30%, transparent); }
+.border-accent\/40 { border-color: color-mix(in srgb, var(--accent-primary, #6366f1) 40%, transparent); }
+.hover\:border-accent\/30:hover { border-color: color-mix(in srgb, var(--accent-primary, #6366f1) 30%, transparent); }
+.hover\:border-accent\/50:hover { border-color: color-mix(in srgb, var(--accent-primary, #6366f1) 50%, transparent); }
+.hover\:bg-accent\/5:hover { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 5%, transparent); }
+.hover\:bg-accent\/10:hover { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 10%, transparent); }
+
+/* Decorative glows — use the runtime accent so the page
+ * surface picks up the chosen colour. The base shell stays
+ * mostly dark / light, but a faint accent halo makes the
+ * page feel like it has a personality. The radial gradient
+ * uses color-mix so it tracks the variable without inline
+ * styles. */
+.bg-accent-glow {
+  background-image:
+    radial-gradient(
+      ellipse 80% 50% at 50% 0%,
+      color-mix(in srgb, var(--accent-primary, #6366f1) 12%, transparent) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 80% 100%,
+      color-mix(in srgb, var(--accent-primary, #6366f1) 8%, transparent) 0%,
+      transparent 70%
+    );
+}
+
+.bg-accent-glow-strong {
+  background-image:
+    radial-gradient(
+      ellipse 70% 60% at 50% 0%,
+      color-mix(in srgb, var(--accent-primary, #6366f1) 22%, transparent) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 50% 50% at 100% 50%,
+      color-mix(in srgb, var(--accent-primary, #6366f1) 14%, transparent) 0%,
+      transparent 70%
+    );
+}
+
+/* Subtle accent ring used by cards that highlight on hover
+ * or are the "current" item in a list. The box-shadow does
+ * not bleed outside the rounded container. */
+.shadow-accent {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent-primary, #6366f1) 40%, transparent),
+    0 8px 24px -8px color-mix(in srgb, var(--accent-primary, #6366f1) 30%, transparent);
+}
+
+.shadow-accent-lg {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent-primary, #6366f1) 50%, transparent),
+    0 20px 40px -12px color-mix(in srgb, var(--accent-primary, #6366f1) 40%, transparent);
+}
+
+/* Light mode uses a more saturated glow because the white
+ * backdrop washes the colour out otherwise. */
+:root.theme-light .bg-accent-glow {
+  background-image:
+    radial-gradient(
+      ellipse 80% 50% at 50% 0%,
+      color-mix(in srgb, var(--accent-primary, #6366f1) 18%, transparent) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 80% 100%,
+      color-mix(in srgb, var(--accent-primary, #6366f1) 12%, transparent) 0%,
+      transparent 70%
+    );
+}
 
 /* Backgrounds. slate-950 is the page; slate-900 / slate-800 are
  * card surfaces; slate-50 is the lightest accent. */

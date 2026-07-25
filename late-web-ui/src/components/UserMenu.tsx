@@ -9,6 +9,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { getSavedSession } from "@/lib/chat-session";
+
+const SESSION_KEY = "late.session";
 import { UserAvatar } from "./UserAvatar";
 import { NotificationSettingsModal } from "./NotificationSettingsModal";
 import { NickPromptModal } from "./NickPromptModal";
@@ -26,17 +28,26 @@ export function UserMenu() {
   const [showTheme, setShowTheme] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // ponytail: re-read the user when the late-auth /me refresh
-  // changes localStorage (via chat-session.ts's saveSession call).
-  // The user list in the dropdown re-renders without a reload.
+  // ponytail: re-read the user whenever the local session changes
+  // — login (saveSession), logout (clearSession), or any tab
+  // picking up a fresh /me refresh from validateSession. We listen
+  // on both `storage` (cross-tab) and the in-process
+  // `late:session-change` event (same window) because localStorage
+  // writes do NOT fire `storage` in the writer window — only in
+  // other tabs. Without the in-process event the avatar would
+  // stay blank after a fresh login until the user reloaded.
   useEffect(() => {
+    const refresh = () => setUser(getSavedSession()?.user ?? null);
     const onStorage = (e: StorageEvent) => {
-      if (e.key === "late.session" || e.key === null) {
-        setUser(getSavedSession()?.user ?? null);
-      }
+      if (e.key === SESSION_KEY || e.key === null) refresh();
     };
+    const onLocal = () => refresh();
     window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    window.addEventListener("late:session-change", onLocal);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("late:session-change", onLocal);
+    };
   }, []);
 
   useEffect(() => {
@@ -75,7 +86,9 @@ export function UserMenu() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={`flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-lg transition-colors ${
-          isLight
+          open
+            ? "bg-accent/15 ring-1 ring-accent/30"
+            : isLight
             ? "hover:bg-slate-100"
             : "hover:bg-slate-800"
         }`}
@@ -95,10 +108,10 @@ export function UserMenu() {
 
       {open && (
         <div
-          className={`absolute right-0 mt-2 w-64 rounded-xl border shadow-2xl overflow-hidden z-50 animate-menu-drop ${
+          className={`absolute right-0 mt-2 w-64 rounded-xl border shadow-accent overflow-hidden z-50 animate-menu-drop ${
             isLight
-              ? "bg-white border-slate-200"
-              : "bg-slate-900 border-slate-700"
+              ? "bg-white border-accent/30"
+              : "bg-slate-900 border-accent/30"
           }`}
         >
           <div

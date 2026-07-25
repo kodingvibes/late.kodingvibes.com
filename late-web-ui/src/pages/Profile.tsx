@@ -42,6 +42,15 @@ export function Profile() {
     };
   }, [user, previewUrl]);
 
+  // ponytail: pick up session changes that happen while the
+  // page is open (e.g. avatar upload finishes, the header
+  // chip and the profile picture need to match).
+  useEffect(() => {
+    const onLocal = () => setUser(getSavedSession()?.user ?? null);
+    window.addEventListener("late:session-change", onLocal);
+    return () => window.removeEventListener("late:session-change", onLocal);
+  }, []);
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -123,7 +132,15 @@ export function Profile() {
   };
 
   return (
-    <div className={`min-h-screen ${isLight ? "bg-slate-50" : "bg-slate-950"}`}>
+    <div className={`relative min-h-screen ${isLight ? "bg-slate-50" : "bg-slate-950"}`}>
+      {/* ponytail: a faint accent halo behind the profile so the
+       * chosen colour tints the page surface. The gradient
+       * tracks --accent-primary so picking rose / amber /
+       * emerald actually tints the backdrop. */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-[420px] -z-10 bg-accent-glow"
+        aria-hidden="true"
+      />
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6 animate-menu-up">
         <div className="flex items-center gap-3">
           <button

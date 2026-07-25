@@ -25,7 +25,17 @@ export function Home() {
     .filter((s): s is StreamInfo => Boolean(s));
 
   return (
-    <div className={`min-h-screen ${isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-100"} pb-24`}>
+    <div className={`relative min-h-screen ${isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-100"} pb-24`}>
+      {/* ponytail: a faint accent halo behind the page title so
+       * the chosen colour bleeds into the surface without
+       * hijacking the whole backdrop. The radial gradient
+       * picks up the live --accent-primary from the theme
+       * provider, so picking rose / emerald / amber actually
+       * tints the page. */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-[480px] -z-10 bg-accent-glow"
+        aria-hidden="true"
+      />
       <section className="max-w-5xl mx-auto px-4 sm:px-6 pt-10 sm:pt-16 pb-8 sm:pb-12">
         <h1 className="text-3xl sm:text-5xl font-bold tracking-tight mb-3">
           un rinconcito comfy, tarde en la noche
@@ -96,13 +106,13 @@ export function Home() {
             <Link
               key={s.mount}
               to="/icecast"
-              className={`group flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
+              className={`group flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${
                 isLight
-                  ? "border-slate-200 bg-white hover:bg-slate-50"
-                  : "border-slate-800 bg-slate-900/40 hover:bg-slate-900/80"
+                  ? "border-slate-200 bg-white hover:border-accent/40 hover:bg-slate-50"
+                  : "border-slate-800 bg-slate-900/40 hover:border-accent/40 hover:bg-slate-900/80"
               }`}
             >
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-lg ${s.accent || "text-accent"}`}>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-lg bg-accent/20 ${s.accent || "text-accent"}`}>
                 <Radio className="w-3.5 h-3.5 text-white" />
               </div>
               <div className="min-w-0 flex-1">
