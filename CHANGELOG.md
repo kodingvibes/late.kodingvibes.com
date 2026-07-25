@@ -1,3 +1,10 @@
+# [1.13.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.12.1...v1.13.0) (2026-07-25)
+
+
+### Features
+
+* **deployd:** auto-deploy late-micro-dashboard ([aa8279e](https://github.com/kodingvibes/late.kodingvibes.com/commit/aa8279e54f128fa1b8dbb81b076e584ce4771491))
+
 ## [1.12.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.12.0...v1.12.1) (2026-07-25)
 
 
