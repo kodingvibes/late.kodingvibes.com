@@ -1,3 +1,10 @@
+## [1.21.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.21.0...v1.21.1) (2026-07-25)
+
+
+### Bug Fixes
+
+* **theme:** eliminate remaining hardcoded color leaks ([02ce570](https://github.com/kodingvibes/late.kodingvibes.com/commit/02ce570a937f6edf949a78cd0c15cbaaab93df95)), closes [#020617](https://github.com/kodingvibes/late.kodingvibes.com/issues/020617)
+
 # [1.21.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.20.6...v1.21.0) (2026-07-25)
 
 
