@@ -95,7 +95,7 @@ export function UserMenu() {
 
       {open && (
         <div
-          className={`absolute right-0 mt-2 w-64 rounded-xl border shadow-2xl overflow-hidden z-50 ${
+          className={`absolute right-0 mt-2 w-64 rounded-xl border shadow-2xl overflow-hidden z-50 animate-menu-drop ${
             isLight
               ? "bg-white border-slate-200"
               : "bg-slate-900 border-slate-700"

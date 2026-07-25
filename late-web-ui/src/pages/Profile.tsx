@@ -94,7 +94,7 @@ export function Profile() {
 
   return (
     <div className={`min-h-screen ${isLight ? "bg-slate-50" : "bg-slate-950"}`}>
-      <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-3xl mx-auto px-4 py-8 space-y-6 animate-menu-up">
         <div className="flex items-center gap-3">
           <button
             type="button"

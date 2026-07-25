@@ -110,8 +110,8 @@ export function RequireAuth({ children, mountSlot }: RequireAuthProps) {
 
   if (phase === "login") {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
-        <div className="flex flex-col items-center gap-4 max-w-md text-center">
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4 animate-menu-backdrop">
+        <div className="flex flex-col items-center gap-4 max-w-md text-center animate-menu-pop">
           <div className="text-slate-200 text-sm font-medium">
             {error || "Necesitás iniciar sesión para entrar."}
           </div>

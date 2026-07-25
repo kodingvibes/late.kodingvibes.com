@@ -39,12 +39,12 @@ export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-menu-backdrop"
       onClick={onClose}
     >
       <div
         ref={ref}
-        className={`w-full max-w-sm rounded-2xl border shadow-2xl overflow-hidden ${
+        className={`w-full max-w-sm rounded-2xl border shadow-2xl overflow-hidden animate-menu-pop ${
           isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-700"
         }`}
         onClick={(e) => e.stopPropagation()}

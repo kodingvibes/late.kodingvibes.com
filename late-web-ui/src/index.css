@@ -313,6 +313,85 @@ input[type="range"] {
   animation: slide-in-from-bottom 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ponytail: standardised menu / popover / modal animations
+ * at 1000ms. The shell and the micro chat both reuse these
+ * keyframes so every dropdown, context menu, modal, and
+ * drawer reads the same way.
+ *
+ *   - menu-drop: dropdowns anchored to a trigger above them
+ *     (e.g. user menu, channel row menu) slide down + fade.
+ *   - menu-pop: centred modals fade in and scale up.
+ *   - menu-drawer-side-left / -right: side drawers slide in
+ *     from the corresponding edge.
+ *   - menu-backdrop: a quick fade for the dimmed backdrop so
+ *     the menu pop is the focal point.
+ *   - menu-tooltip: tiny popovers / inline popups.
+ *   - menu-toast: notifications from below.
+ */
+@keyframes menu-drop {
+  from { opacity: 0; transform: translateY(-12px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+.animate-menu-drop {
+  animation: menu-drop 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes menu-up {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+.animate-menu-up {
+  animation: menu-up 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes menu-pop {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.animate-menu-pop {
+  animation: menu-pop 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes menu-drawer-from-right {
+  from { opacity: 0; transform: translateX(32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.animate-menu-drawer-from-right {
+  animation: menu-drawer-from-right 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes menu-drawer-from-left {
+  from { opacity: 0; transform: translateX(-32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.animate-menu-drawer-from-left {
+  animation: menu-drawer-from-left 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes menu-backdrop {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-menu-backdrop {
+  animation: menu-backdrop 0.5s ease-out both;
+}
+
+@keyframes menu-tooltip {
+  from { opacity: 0; transform: translateY(-4px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+.animate-menu-tooltip {
+  animation: menu-tooltip 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes menu-toast {
+  from { opacity: 0; transform: translateY(24px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+.animate-menu-toast {
+  animation: menu-toast 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 /* Subtle ripple on click for primary buttons */
 @keyframes ripple {
   to { transform: scale(2); opacity: 0; }
