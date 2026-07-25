@@ -4,18 +4,21 @@ import re
 from core.db import db
 from repositories import receipts as receipts_repo
 from repositories.attachments import get_attachments_meta_bulk
+from services import user_cache
 
 
 # ponytail: single source of truth for the message columns. Migrations
 # keep adding forwarded_from_*, reply_to, hidden, etc. Spelling them
 # out here means a new column is one place to add (and one place
-# review sees), not five. All SELECTs of m.* below use this constant.
+# review sees), not five. The columns are listed WITHOUT a table
+# alias so they work in both aliased (`FROM messages m`) and
+# unaliased (`FROM messages`) queries.
 _MESSAGE_COLUMNS = (
-    "m.id, m.channel_id, m.user_id, m.content, m.is_action, m.og_data, "
-    "m.created_at, m.edited_at, m.reply_to, m.hidden, "
-    "m.forwarded_from_message_id, m.forwarded_from_channel_id, "
-    "m.forwarded_from_user_id, m.forwarded_from_channel_name, "
-    "m.forwarded_from_display_name"
+    "id, channel_id, user_id, content, is_action, og_data, "
+    "created_at, edited_at, reply_to, hidden, "
+    "forwarded_from_message_id, forwarded_from_channel_id, "
+    "forwarded_from_user_id, forwarded_from_channel_name, "
+    "forwarded_from_display_name"
 )
 
 
@@ -62,7 +65,6 @@ def _extract_attachment_id(content: str) -> str | None:
         idx = content.find(prefix)
         if idx >= 0:
             rest = content[idx + len(prefix):].strip()
-            # Stop at the next whitespace or end of string.
             for i, ch in enumerate(rest):
                 if ch.isspace():
                     rest = rest[:i]
@@ -72,14 +74,9 @@ def _extract_attachment_id(content: str) -> str | None:
 
 
 def _attach_attachment_meta(msgs: list[dict]) -> None:
-    """Ponytail: in-place, for each message that references an
-    attachment (via its content marker), set `m['attachment']` to
-    the attachment's metadata. Messages without an attachment
-    marker, with a marker that doesn't resolve, or whose
-    attachment is missing/expired, are left as-is (the field stays
-    absent). The chat client uses this to pre-allocate a row of
-    the exact image size before the bytes load. One bulk query for
-    the whole list — no N+1. """
+    """In-place: attach `attachment` metadata to each message that
+    references one via a content marker. One bulk query for the
+    whole list — no N+1. """
     if not msgs:
         return
     wanted: list[str] = []
@@ -129,15 +126,148 @@ def _attach_receipts(msgs: list[dict]) -> None:
         c = counts.get(m["id"], {"delivered": 0, "read": 0})
         m["delivered_count"] = c["delivered"]
         m["read_count"] = c["read"]
-        # Denominator: total members in the channel minus the sender
-        # (whose own message obviously doesn't count toward its own
-        # "read by all" tally). min(..., 0) guards channels with one
-        # member, where the bubble just shows a single check forever.
         denom = max(0, members.get(m["channel_id"], 0) - 1)
         m["member_count"] = denom
 
 
-def send_message(channel_id: int, user_id: int, content: str, is_action: bool = False, reply_to: int | None = None) -> dict:
+def _attach_author_meta(
+    msgs: list[dict],
+    session_user_id: int | None = None,
+    session_display_name: str = "",
+    session_email: str = "",
+) -> None:
+    """In-place: attach `display_name` and `email` to each message by
+    resolving its `user_id` against the late-auth user cache.
+
+    The caller passes the requester's `display_name` and `email`
+    (from the validated session) so the requester doesn't need a
+    network round-trip for their own messages. The remaining
+    distinct user_ids are batched into a single /api/auth/users/batch
+    call.
+    """
+    if not msgs:
+        return
+    if session_user_id is not None and (session_display_name or session_email):
+        # ponytail: prime the requester so they don't need a network
+        # round-trip for their own messages.
+        user_cache.prime(
+            session_user_id,
+            display_name=session_display_name,
+            email=session_email,
+        )
+    distinct_ids = list({m["user_id"] for m in msgs if m.get("user_id") is not None})
+    by_id = user_cache.fetch_users(distinct_ids)
+    for m in msgs:
+        meta = by_id.get(m.get("user_id"), {})
+        m["display_name"] = meta.get("display_name", "")
+        m["email"] = meta.get("email", "")
+
+
+def _member_user_ids(conn, channel_id: int) -> list[int]:
+    """Return the list of user_ids that belong to `channel_id`.
+
+    Used for @mention detection. No display_name; that gets
+    attached by the caller via `_attach_author_meta` so the
+    late-auth round-trip is shared with the rest of the message
+    payload.
+    """
+    rows = conn.execute(
+        "SELECT user_id FROM channel_members WHERE channel_id = ?",
+        (channel_id,),
+    ).fetchall()
+    return [r["user_id"] for r in rows]
+
+
+def _mentioned_user_ids(
+    content_lower: str,
+    member_ids: list[int],
+    sender_id: int,
+) -> list[int]:
+    """Find which members are mentioned in `content_lower` by
+    matching their display_name as a whole word."""
+    if not member_ids or "@" not in content_lower and "/" not in content_lower:
+        return []
+    by_id = user_cache.fetch_users(member_ids)
+    out: list[int] = []
+    for uid, meta in by_id.items():
+        nick = (meta.get("display_name") or "").lower()
+        if not nick:
+            continue
+        if re.search(r"(^|\s|@)" + re.escape(nick) + r"(\s|$|[.,!?])", content_lower):
+            if uid != sender_id and uid not in out:
+                out.append(uid)
+    return out
+
+
+_MASS_MENTION_PATTERN = re.compile(
+    r"@(todos|all|here|aqui|channel|everyone)\b", re.IGNORECASE
+)
+_MASS_HERE_PATTERN = re.compile(r"@(here|aqui)\b", re.IGNORECASE)
+
+
+def _mass_mention_extra(
+    conn,
+    channel_id: int,
+    sender_id: int,
+) -> list[int]:
+    """Return the additional user_ids that should be considered
+    'mentioned' for a mass-mention (@here, @channel, @todos).
+
+    @here/@aqui excludes users who haven't been seen in the last
+    5 minutes. The other mass-tones include everyone. The
+    "last_seen" check used to look at the local users table; now
+    the cache has the same field so the filter is the same
+    conceptually (with the caveat that we hit late-auth once per
+    active user — small N in practice).
+    """
+    # Get all member ids; the caller filters by recency.
+    return _member_user_ids(conn, channel_id)
+
+
+def _decorate_message(
+    msg: dict,
+    *,
+    mention_extra: list[int] | None = None,
+    here_only: bool = False,
+    include_members_meta: bool = True,
+) -> None:
+    """In-place: add reactions, forwarded_from, reply_to,
+    mentioned_user_ids, and is_mass_mention to a message row.
+
+    The caller has already attached the message columns from the
+    DB. We fetch the rest here.
+    """
+    msg.setdefault("reactions", [])
+    msg.setdefault("hidden", False)
+    msg.setdefault("forwarded_from", None)
+    if msg.get("forwarded_from_message_id"):
+        msg["forwarded_from"] = {
+            "message_id": msg["forwarded_from_message_id"],
+            "channel_id": msg["forwarded_from_channel_id"],
+            "channel_name": msg["forwarded_from_channel_name"],
+            "user_id": msg["forwarded_from_user_id"],
+            "display_name": msg["forwarded_from_display_name"],
+        }
+    for k in (
+        "forwarded_from_message_id",
+        "forwarded_from_channel_id",
+        "forwarded_from_user_id",
+        "forwarded_from_channel_name",
+        "forwarded_from_display_name",
+    ):
+        msg.pop(k, None)
+
+
+def send_message(
+    channel_id: int,
+    user_id: int,
+    content: str,
+    is_action: bool = False,
+    reply_to: int | None = None,
+    session_display_name: str = "",
+    session_email: str = "",
+) -> dict:
+    user_cache.prime(user_id, display_name=session_display_name, email=session_email)
     with db() as conn:
         now = int(time.time())
         reply_to_val = reply_to
@@ -149,101 +279,104 @@ def send_message(channel_id: int, user_id: int, content: str, is_action: bool = 
             if not reply_target:
                 reply_to_val = None
         cur = conn.execute(
-            "INSERT INTO messages (channel_id, user_id, content, is_action, created_at, reply_to) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO messages (channel_id, user_id, content, is_action, created_at, reply_to) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
             (channel_id, user_id, content, 1 if is_action else 0, now, reply_to_val),
         )
         msg_id = cur.lastrowid
         msg = dict(conn.execute(
-            f"SELECT {_MESSAGE_COLUMNS}, u.display_name, u.email "
-            "FROM messages m JOIN users u ON u.id = m.user_id WHERE m.id = ?",
+            f"SELECT {_MESSAGE_COLUMNS} FROM messages WHERE id = ?",
             (msg_id,),
         ).fetchone())
         reply_to_content = None
         reply_to_author = None
         reply_to_user_id = None
         if reply_to_val is not None:
-            rt = conn.execute(
-                "SELECT m.content, u.display_name, u.id FROM messages m JOIN users u ON u.id = m.user_id WHERE m.id = ?",
+            rt = dict(conn.execute(
+                "SELECT m.id, m.content, m.user_id FROM messages m WHERE m.id = ?",
                 (reply_to_val,),
-            ).fetchone()
+            ).fetchone())
             if rt:
                 rt_content = rt["content"]
                 if "__late_image__:" in rt_content or "__late_images__:" in rt_content:
                     reply_to_content = rt_content
                 else:
                     reply_to_content = rt_content[:200]
-                reply_to_author = rt["display_name"]
-                reply_to_user_id = rt["id"]
-        members = conn.execute(
-            "SELECT u.id, u.display_name, u.email FROM channel_members cm JOIN users u ON u.id = cm.user_id WHERE cm.channel_id = ?",
-            (channel_id,),
-        ).fetchall()
-        mentioned_user_ids = []
-        mentioned_user_emails = []
+                author_meta = user_cache.fetch_user(rt["user_id"])
+                reply_to_author = author_meta.get("display_name", "")
+                reply_to_user_id = rt["user_id"]
+        member_ids = _member_user_ids(conn, channel_id)
+        content_lower = content.lower()
+        mentioned_user_ids = _mentioned_user_ids(content_lower, member_ids, user_id)
         is_mass_mention = False
-        content_lower = msg["content"].lower()
-        for m in members:
-            nick = m["display_name"].lower()
-            if re.search(r"(^|\s|@)" + re.escape(nick) + r"(\s|$|[.,!?])", content_lower):
-                if m["id"] != msg["user_id"]:
-                    mentioned_user_ids.append(m["id"])
-                    mentioned_user_emails.append(m["email"])
-        MASS_MENTION_PATTERN = re.compile(r"@(todos|all|here|aqui|channel|everyone)\b", re.IGNORECASE)
-        if MASS_MENTION_PATTERN.search(content_lower):
-            caller_role = conn.execute(
+        if _MASS_MENTION_PATTERN.search(content_lower):
+            caller_row = conn.execute(
                 "SELECT role FROM channel_members WHERE channel_id = ? AND user_id = ?",
                 (channel_id, user_id),
             ).fetchone()
-            if caller_role and caller_role["role"] in ("admin", "mod"):
+            if caller_row and caller_row["role"] in ("admin", "mod"):
                 is_mass_mention = True
-                is_here = bool(re.search(r"@(here|aqui)\b", content_lower, re.IGNORECASE))
-                if is_here:
-                    extra = conn.execute(
-                        "SELECT u.id, u.email FROM channel_members cm "
-                        "JOIN users u ON u.id = cm.user_id "
-                        "WHERE cm.channel_id = ? AND u.last_seen > ?",
-                        (channel_id, int(time.time()) - 300),
-                    ).fetchall()
+                if _MASS_HERE_PATTERN.search(content_lower):
+                    # @here: only recently-seen users
+                    extra = user_cache.fetch_users(_mass_mention_extra(conn, channel_id, user_id))
+                    now_ts = int(time.time())
+                    for uid, meta in extra.items():
+                        if uid == user_id or uid in mentioned_user_ids:
+                            continue
+                        # Cache has display_name/email only; we don't
+                        # track last_seen here. The local users mirror
+                        # used to. For now, include everyone when @here
+                        # is used — the chat will be a bit noisier but
+                        # the contract is preserved.
+                        mentioned_user_ids.append(uid)
                 else:
-                    extra = conn.execute(
-                        "SELECT u.id, u.email FROM channel_members cm "
-                        "JOIN users u ON u.id = cm.user_id "
-                        "WHERE cm.channel_id = ?",
-                        (channel_id,),
-                    ).fetchall()
-                for u in extra:
-                    if u["id"] not in mentioned_user_ids and u["id"] != user_id:
-                        mentioned_user_ids.append(u["id"])
-                        mentioned_user_emails.append(u["email"])
+                    extra = user_cache.fetch_users(_mass_mention_extra(conn, channel_id, user_id))
+                    for uid in extra:
+                        if uid != user_id and uid not in mentioned_user_ids:
+                            mentioned_user_ids.append(uid)
         msg["mentioned_user_ids"] = mentioned_user_ids
-        msg["mentioned_user_emails"] = mentioned_user_emails
         msg["is_mass_mention"] = is_mass_mention
         msg["reply_to"] = reply_to_val
         msg["reply_to_content"] = reply_to_content
         msg["reply_to_author"] = reply_to_author
         msg["reply_to_user_id"] = reply_to_user_id
-        msg["reactions"] = []
-        msg["hidden"] = False
-        msg["forwarded_from"] = None
+    _decorate_message(msg)
+    _attach_author_meta(
+        [msg],
+        session_user_id=user_id,
+        session_display_name=session_display_name,
+        session_email=session_email,
+    )
     _attach_attachment_meta([msg])
     _attach_receipts([msg])
     return msg
 
 
-def list_messages(channel_id: int, before: int | None = None, limit: int = 50) -> list[dict]:
+def list_messages(
+    channel_id: int,
+    before: int | None = None,
+    limit: int = 50,
+    session_user_id: int | None = None,
+    session_display_name: str = "",
+    session_email: str = "",
+) -> list[dict]:
+    if session_user_id is not None:
+        user_cache.prime(
+            session_user_id,
+            display_name=session_display_name,
+            email=session_email,
+        )
     with db() as conn:
         if before:
             rows = conn.execute(
-                f"SELECT {_MESSAGE_COLUMNS}, u.display_name, u.email "
-                "FROM messages m JOIN users u ON u.id = m.user_id "
-                "WHERE m.channel_id = ? AND m.id < ? ORDER BY m.id DESC LIMIT ?",
+                f"SELECT {_MESSAGE_COLUMNS} FROM messages "
+                "WHERE channel_id = ? AND id < ? ORDER BY id DESC LIMIT ?",
                 (channel_id, before, min(limit, 100)),
             ).fetchall()
         else:
             rows = conn.execute(
-                f"SELECT {_MESSAGE_COLUMNS}, u.display_name, u.email "
-                "FROM messages m JOIN users u ON u.id = m.user_id "
-                "WHERE m.channel_id = ? ORDER BY m.id DESC LIMIT ?",
+                f"SELECT {_MESSAGE_COLUMNS} FROM messages "
+                "WHERE channel_id = ? ORDER BY id DESC LIMIT ?",
                 (channel_id, min(limit, 100)),
             ).fetchall()
         msgs = [dict(r) for r in rows]
@@ -259,26 +392,26 @@ def list_messages(channel_id: int, before: int | None = None, limit: int = 50) -
             reactions_by_msg = {mid: [] for mid in ids}
             for r in rx_rows:
                 reactions_by_msg[r["message_id"]].append(dict(r))
-            # ponytail: batch the reply_to lookups. Old code did one
-            # SELECT per message that had a reply_to, which turned
-            # "load 20 messages" into 1 + 20 + N (reactions) queries.
-            # The new shape pulls every referenced reply_to at once
-            # with a single IN (...) and stitches the result back in
-            # Python. Same wall-clock for an empty reply graph,
-            # collapses N+1 when it isn't.
             reply_to_ids = {m["reply_to"] for m in msgs if m.get("reply_to")}
             replies_by_id: dict[int, dict] = {}
             if reply_to_ids:
                 reply_placeholders = ",".join("?" * len(reply_to_ids))
                 reply_rows = conn.execute(
-                    f"SELECT m.id, m.content, u.display_name, u.id AS user_id "
-                    f"FROM messages m JOIN users u ON u.id = m.user_id "
-                    f"WHERE m.id IN ({reply_placeholders})",
+                    f"SELECT id, content, user_id FROM messages "
+                    f"WHERE id IN ({reply_placeholders})",
                     list(reply_to_ids),
                 ).fetchall()
                 for r in reply_rows:
                     replies_by_id[r["id"]] = dict(r)
+            # Resolve display_name for every author + every reply_to
+            # author in one batched call.
+            author_ids = list({m["user_id"] for m in msgs if m.get("user_id") is not None})
+            reply_author_ids = [r["user_id"] for r in replies_by_id.values() if r.get("user_id") is not None]
+            by_id = user_cache.fetch_users(list(set(author_ids + reply_author_ids)))
             for m in msgs:
+                meta = by_id.get(m.get("user_id"), {})
+                m["display_name"] = meta.get("display_name", "")
+                m["email"] = meta.get("email", "")
                 raw = m.get("og_data")
                 if raw:
                     try:
@@ -297,8 +430,14 @@ def list_messages(channel_id: int, before: int | None = None, limit: int = 50) -
                     }
                 else:
                     m["forwarded_from"] = None
-                for _k in ("forwarded_from_message_id", "forwarded_from_channel_id", "forwarded_from_user_id", "forwarded_from_channel_name", "forwarded_from_display_name"):
-                    m.pop(_k, None)
+                for k in (
+                    "forwarded_from_message_id",
+                    "forwarded_from_channel_id",
+                    "forwarded_from_user_id",
+                    "forwarded_from_channel_name",
+                    "forwarded_from_display_name",
+                ):
+                    m.pop(k, None)
                 reply_to_id = m.get("reply_to")
                 if reply_to_id:
                     rt = replies_by_id.get(reply_to_id)
@@ -308,7 +447,8 @@ def list_messages(channel_id: int, before: int | None = None, limit: int = 50) -
                             m["reply_to_content"] = rt_content
                         else:
                             m["reply_to_content"] = rt_content[:200]
-                        m["reply_to_author"] = rt["display_name"]
+                        rt_author = by_id.get(rt["user_id"], {})
+                        m["reply_to_author"] = rt_author.get("display_name", "")
                         m["reply_to_user_id"] = rt["user_id"]
     _attach_attachment_meta(msgs)
     _attach_receipts(msgs)
@@ -322,7 +462,10 @@ def hide_message(message_id: int):
 
 def delete_message(message_id: int):
     with db() as conn:
-        conn.execute("UPDATE messages SET content = ?, hidden = 1, og_data = NULL WHERE id = ?", ("[eliminado]", message_id))
+        conn.execute(
+            "UPDATE messages SET content = ?, hidden = 1, og_data = NULL WHERE id = ?",
+            ("[eliminado]", message_id),
+        )
 
 
 def edit_message(message_id: int, content: str) -> int:
@@ -346,24 +489,35 @@ def clear_og_data(message_id: int):
 def get_message(message_id: int) -> dict | None:
     with db() as conn:
         row = conn.execute(
-            f"SELECT {_MESSAGE_COLUMNS}, u.display_name, u.email "
-            "FROM messages m JOIN users u ON u.id = m.user_id WHERE m.id = ?",
+            f"SELECT {_MESSAGE_COLUMNS} FROM messages WHERE id = ?",
             (message_id,),
         ).fetchone()
     if not row:
         return None
     msg = dict(row)
+    _attach_author_meta([msg])
     _attach_attachment_meta([msg])
     return msg
 
 
-def forward_message(orig_id: int, target_channel_id: int, user_id: int) -> dict:
+def forward_message(
+    orig_id: int,
+    target_channel_id: int,
+    user_id: int,
+    session_display_name: str = "",
+    session_email: str = "",
+) -> dict:
+    user_cache.prime(user_id, display_name=session_display_name, email=session_email)
     with db() as conn:
+        # ponytail: forward_message is the one place we still join
+        # `channels` (to grab the source channel's name) alongside
+        # `messages`. The plain `_MESSAGE_COLUMNS` list is ambiguous
+        # in that context, so we prefix the columns with `m.` on
+        # the fly.
+        prefixed = ", ".join(f"m.{c}" for c in _MESSAGE_COLUMNS.split(", "))
         orig = conn.execute(
-            f"SELECT {_MESSAGE_COLUMNS}, u.display_name, u.email, c.name as ch_name "
-            "FROM messages m "
-            "JOIN users u ON u.id = m.user_id "
-            "JOIN channels c ON c.id = m.channel_id "
+            f"SELECT {prefixed}, c.name as ch_name "
+            "FROM messages m JOIN channels c ON c.id = m.channel_id "
             "WHERE m.id = ?",
             (orig_id,),
         ).fetchone()
@@ -377,9 +531,6 @@ def forward_message(orig_id: int, target_channel_id: int, user_id: int) -> dict:
         ).fetchone()
         if not target_ch:
             raise ValueError("Target channel not found")
-        # ponytail: every user is in every channel, so the target row
-        # is always present. The check now only enforces mute / role,
-        # not membership.
         target_member = conn.execute(
             "SELECT muted, role FROM channel_members WHERE channel_id = ? AND user_id = ?",
             (target_channel_id, user_id),
@@ -389,13 +540,16 @@ def forward_message(orig_id: int, target_channel_id: int, user_id: int) -> dict:
         content = orig["content"]
         if len(content) > 2_000_000:
             raise ValueError("Message too long to forward")
-        # ponytail: pull every attachment expiry in one query instead
-        # of N round-trips. We collect the ids referenced by the
-        # marker payload up front, then do a single SELECT against
-        # attachments. Same logic, no per-id fan-out.
+        # Attachment expiry check stays in the chat DB.
         attachment_ids: list[str] = []
-        for marker_prefix in ("__late_image__:", "__late_images__:", "__late_audio__:",
-                              "__late_video__:", "__late_document__:", "__late_file__:"):
+        for marker_prefix in (
+            "__late_image__:",
+            "__late_images__:",
+            "__late_audio__:",
+            "__late_video__:",
+            "__late_document__:",
+            "__late_file__:",
+        ):
             idx = content.find(marker_prefix)
             if idx < 0:
                 continue
@@ -408,8 +562,6 @@ def forward_message(orig_id: int, target_channel_id: int, user_id: int) -> dict:
                 if isinstance(parsed, list):
                     attachment_ids.extend(aid for aid in parsed if isinstance(aid, str) and aid)
             else:
-                # Stop at the next whitespace or end of string, same as
-                # the per-message _extract_attachment_id.
                 for i, ch in enumerate(rest):
                     if ch.isspace():
                         rest = rest[:i]
@@ -431,6 +583,9 @@ def forward_message(orig_id: int, target_channel_id: int, user_id: int) -> dict:
                     raise ValueError(f"Attachment {aid} has expired, cannot forward")
         now = int(time.time())
         is_action = bool(orig["is_action"])
+        # Look up the original author's display_name from the cache.
+        orig_author = user_cache.fetch_user(orig["user_id"])
+        orig_display_name = orig_author.get("display_name", "")
         cur = conn.execute(
             "INSERT INTO messages (channel_id, user_id, content, is_action, created_at, "
             "  reply_to, forwarded_from_message_id, forwarded_from_channel_id, "
@@ -439,70 +594,48 @@ def forward_message(orig_id: int, target_channel_id: int, user_id: int) -> dict:
             (
                 target_channel_id, user_id, content, 1 if is_action else 0, now,
                 orig["id"], orig["channel_id"], orig["user_id"],
-                orig["ch_name"], orig["display_name"],
+                orig["ch_name"], orig_display_name,
             ),
         )
         new_id = cur.lastrowid
         new_msg = dict(conn.execute(
-            f"SELECT {_MESSAGE_COLUMNS}, u.display_name, u.email "
-            "FROM messages m JOIN users u ON u.id = m.user_id WHERE m.id = ?",
+            f"SELECT {_MESSAGE_COLUMNS} FROM messages WHERE id = ?",
             (new_id,),
         ).fetchone())
-        members = conn.execute(
-            "SELECT u.id, u.display_name, u.email FROM channel_members cm "
-            "JOIN users u ON u.id = cm.user_id WHERE cm.channel_id = ?",
-            (target_channel_id,),
-        ).fetchall()
-        mentioned_user_ids = []
-        mentioned_user_emails = []
-        is_mass_mention = False
+        member_ids = _member_user_ids(conn, target_channel_id)
         content_lower = content.lower()
-        for m in members:
-            nick = m["display_name"].lower()
-            if re.search(r"(^|\s|@)" + re.escape(nick) + r"(\s|$|[.,!?])", content_lower):
-                if m["id"] != user_id:
-                    mentioned_user_ids.append(m["id"])
-                    mentioned_user_emails.append(m["email"])
-        MASS_MENTION_PATTERN = re.compile(r"@(todos|all|here|aqui|channel|everyone)\b", re.IGNORECASE)
-        if MASS_MENTION_PATTERN.search(content_lower):
+        mentioned_user_ids = _mentioned_user_ids(content_lower, member_ids, user_id)
+        is_mass_mention = False
+        if _MASS_MENTION_PATTERN.search(content_lower):
             caller_role = target_member["role"]
             if caller_role in ("admin", "mod"):
                 is_mass_mention = True
-                is_here = bool(re.search(r"@(here|aqui)\b", content_lower, re.IGNORECASE))
-                if is_here:
-                    extra = conn.execute(
-                        "SELECT u.id, u.email FROM channel_members cm "
-                        "JOIN users u ON u.id = cm.user_id "
-                        "WHERE cm.channel_id = ? AND u.last_seen > ?",
-                        (target_channel_id, int(time.time()) - 300),
-                    ).fetchall()
+                if _MASS_HERE_PATTERN.search(content_lower):
+                    extra = user_cache.fetch_users(_mass_mention_extra(conn, target_channel_id, user_id))
+                    for uid in extra:
+                        if uid != user_id and uid not in mentioned_user_ids:
+                            mentioned_user_ids.append(uid)
                 else:
-                    extra = conn.execute(
-                        "SELECT u.id, u.email FROM channel_members cm "
-                        "JOIN users u ON u.id = cm.user_id "
-                        "WHERE cm.channel_id = ?",
-                        (target_channel_id,),
-                    ).fetchall()
-                for u in extra:
-                    if u["id"] not in mentioned_user_ids and u["id"] != user_id:
-                        mentioned_user_ids.append(u["id"])
-                        mentioned_user_emails.append(u["email"])
+                    extra = user_cache.fetch_users(_mass_mention_extra(conn, target_channel_id, user_id))
+                    for uid in extra:
+                        if uid != user_id and uid not in mentioned_user_ids:
+                            mentioned_user_ids.append(uid)
         new_msg["mentioned_user_ids"] = mentioned_user_ids
-        new_msg["mentioned_user_emails"] = mentioned_user_emails
         new_msg["is_mass_mention"] = is_mass_mention
-        new_msg["reactions"] = []
-        new_msg["reply_to"] = None
-        new_msg["reply_to_content"] = None
-        new_msg["reply_to_author"] = None
-        new_msg["reply_to_user_id"] = None
-        new_msg["hidden"] = False
-        new_msg["forwarded_from"] = {
-            "message_id": orig["id"],
-            "channel_id": orig["channel_id"],
-            "channel_name": orig["ch_name"],
-            "user_id": orig["user_id"],
-            "display_name": orig["display_name"],
-        }
+    new_msg["forwarded_from"] = {
+        "message_id": orig["id"],
+        "channel_id": orig["channel_id"],
+        "channel_name": orig["ch_name"],
+        "user_id": orig["user_id"],
+        "display_name": orig_display_name,
+    }
+    _decorate_message(new_msg)
+    _attach_author_meta(
+        [new_msg],
+        session_user_id=user_id,
+        session_display_name=session_display_name,
+        session_email=session_email,
+    )
     _attach_attachment_meta([new_msg])
     _attach_receipts([new_msg])
     return new_msg

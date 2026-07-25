@@ -41,6 +41,12 @@ def tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     with get_db() as conn:
         from notes_store import init_table
         init_table(conn)
+    # ponytail: the user cache is a process-global dict so that
+    # message rendering can hit it from any code path. Between tests
+    # we want a clean slate — otherwise an entry from a previous
+    # test leaks in and the late-auth mock returns whatever it had.
+    from services.user_cache import _CACHE
+    _CACHE.clear()
     yield
     for p in Path(tmp_path / "attachments").iterdir():
         p.unlink(missing_ok=True)
@@ -160,10 +166,15 @@ def make_session(mock_late_auth, tmp_db):
     def _make(sub="test-sub", email="test@example.com", name="Test User", user_id=None):
         from core.auth import generate_session_id
         from repositories.users import upsert_user
+        from services.user_cache import prime
         user = upsert_user(sub, email, name)
         user_id_eff = user["id"] if user_id is None else user_id
         session_id = generate_session_id()
         mock_late_auth.register(session_id, {**user, "id": user_id_eff, "global_role": user.get("global_role", "user")})
+        # ponytail: prime the in-process user cache so message
+        # rendering doesn't need a late-auth round-trip for the
+        # requester's own user (the common case in tests).
+        prime(user_id_eff, display_name=user.get("display_name", ""), email=user.get("email", ""))
         created.append({**user, "id": user_id_eff})
         return session_id, {**user, "id": user_id_eff}
 
