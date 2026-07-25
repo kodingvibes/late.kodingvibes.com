@@ -1,3 +1,10 @@
+## [1.9.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.9.0...v1.9.1) (2026-07-25)
+
+
+### Bug Fixes
+
+* **shell:** use static import for chat-session in RequireAuth ([5bec903](https://github.com/kodingvibes/late.kodingvibes.com/commit/5bec903a163219d249a812b92e4d80308b2c42e7))
+
 # [1.9.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.8.1...v1.9.0) (2026-07-25)
 
 
