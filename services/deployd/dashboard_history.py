@@ -44,6 +44,10 @@ DOWNSAMPLE_TARGET = 1000
 # Range presets in seconds. The frontend asks for one of
 # these strings; the rest is a label.
 RANGES: dict[str, int] = {
+    "1m": 60,
+    "5m": 5 * 60,
+    "15m": 15 * 60,
+    "30m": 30 * 60,
     "1h": 3600,
     "6h": 6 * 3600,
     "24h": 24 * 3600,

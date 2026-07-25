@@ -52,6 +52,13 @@ GATHER_TIMEOUT_S = 4.0
 # How often the background loop snapshots and broadcasts.
 BROADCAST_INTERVAL_S = 3.0
 
+# ponytail: gauges (cpu/mem/swap) get their own faster tick
+# because a 3s interval makes the tachometer digits read as
+# a slideshow. The full /api/dashboard/state still broadcasts
+# at 3s so the heavy gatherers (docker ps, icecast status,
+# du -sb) don't run every second.
+BROADCAST_FAST_INTERVAL_S = 1.0
+
 # 18 SomaFM streams — exposed in the state so the MF can
 # render the catalog. Kept in sync with start_soma_relays.sh.
 STREAMS = [
@@ -476,6 +483,22 @@ async def _one(name: str, fn) -> tuple[str, dict]:
         return name, await asyncio.wait_for(fn(), timeout=GATHER_TIMEOUT_S)
     except (asyncio.TimeoutError, Exception) as e:
         return name, {"error": f"{type(e).__name__}: {e}"}
+
+
+async def fast_snapshot() -> dict:
+    """Cheap snapshot for the per-second gauge tick.
+
+    Only reads /proc/stat (twice for the cpu delta) and
+    /proc/meminfo. The 200 ms cpu sample is the worst case;
+    total wall time is well under 250 ms. Returns the
+    same shape that snapshot()['system'] would have, plus
+    a 'gathered_at' so the WS payload is self-describing.
+    """
+    sys = await g_system()
+    return {
+        "system": sys,
+        "gathered_at": datetime.now(ZoneInfo("UTC")).isoformat(),
+    }
 
 
 async def snapshot() -> dict:

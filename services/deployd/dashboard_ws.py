@@ -140,7 +140,57 @@ async def _broadcast_loop() -> None:
         await asyncio.sleep(dashboard_state.BROADCAST_INTERVAL_S)
 
 
+async def _broadcast_fast_loop() -> None:
+    """Per-second tick for the cpu/mem/swap gauges.
+
+    Skips the heavy gatherers (docker ps, icecast status,
+    du -sb) and only runs the cheap /proc readers. The
+    payload is type='state_fast' and carries only the
+    'system' slice of the state plus a short history of
+    the three gauges, so the gauge digits read as a live
+    number rather than a slideshow.
+    """
+    while True:
+        try:
+            fast = await dashboard_state.fast_snapshot()
+            # Append to history at the same cadence so the
+            # 1m range window has data to draw.
+            sys = fast.get("system", {}) or {}
+            if sys.get("cpu_pct") is not None:
+                dashboard_history.append_sample("cpu", sys["cpu_pct"])
+            mem = sys.get("memory", {}) or {}
+            if mem.get("pct") is not None:
+                dashboard_history.append_sample("memory", mem["pct"])
+            swap = sys.get("swap", {}) or {}
+            if swap.get("pct") is not None:
+                dashboard_history.append_sample("swap", swap["pct"])
+            payload = {
+                "type": "state_fast",
+                "t": time.time(),
+                "state": fast,
+                "history": {
+                    "1m": {
+                        "cpu": dashboard_state.history("cpu", 60),
+                        "memory": dashboard_state.history("memory", 60),
+                        "swap": dashboard_state.history("swap", 60),
+                    },
+                    "5m": {
+                        "cpu": dashboard_state.history("cpu", 300),
+                        "memory": dashboard_state.history("memory", 300),
+                        "swap": dashboard_state.history("swap", 300),
+                    },
+                },
+            }
+            await HUB.broadcast(payload)
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            pass
+        await asyncio.sleep(dashboard_state.BROADCAST_FAST_INTERVAL_S)
+
+
 _BROADCAST_TASK: asyncio.Task | None = None
+_BROADCAST_FAST_TASK: asyncio.Task | None = None
 
 
 async def api_dashboard_ws(websocket: WebSocket, token: str = Query("")) -> None:
@@ -211,16 +261,19 @@ def register(app) -> None:
 
     @app.on_event("startup")
     async def _start_broadcast() -> None:
-        global _BROADCAST_TASK
+        global _BROADCAST_TASK, _BROADCAST_FAST_TASK
         if _BROADCAST_TASK is None or _BROADCAST_TASK.done():
             _BROADCAST_TASK = asyncio.create_task(_broadcast_loop())
+        if _BROADCAST_FAST_TASK is None or _BROADCAST_FAST_TASK.done():
+            _BROADCAST_FAST_TASK = asyncio.create_task(_broadcast_fast_loop())
 
     @app.on_event("shutdown")
     async def _stop_broadcast() -> None:
-        global _BROADCAST_TASK
-        if _BROADCAST_TASK and not _BROADCAST_TASK.done():
-            _BROADCAST_TASK.cancel()
-            try:
-                await _BROADCAST_TASK
-            except (asyncio.CancelledError, Exception):
-                pass
+        global _BROADCAST_TASK, _BROADCAST_FAST_TASK
+        for task in (_BROADCAST_TASK, _BROADCAST_FAST_TASK):
+            if task and not task.done():
+                task.cancel()
+                try:
+                    await task
+                except (asyncio.CancelledError, Exception):
+                    pass
