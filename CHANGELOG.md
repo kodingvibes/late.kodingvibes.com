@@ -1,3 +1,10 @@
+## [1.20.2](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.20.1...v1.20.2) (2026-07-25)
+
+
+### Bug Fixes
+
+* **shell:** tint the body backdrop with the chosen accent ([c5e324c](https://github.com/kodingvibes/late.kodingvibes.com/commit/c5e324c1c0c6b4cab3223bb3b29fc6e666e2ae5f))
+
 ## [1.20.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.20.0...v1.20.1) (2026-07-25)
 
 
