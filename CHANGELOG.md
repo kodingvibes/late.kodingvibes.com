@@ -1,3 +1,10 @@
+# [1.7.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.6.1...v1.7.0) (2026-07-25)
+
+
+### Features
+
+* **deployd:** auto-restart late-auth-service on push ([d827dbd](https://github.com/kodingvibes/late.kodingvibes.com/commit/d827dbd4a27764f5da7713ae1c2fc2646984cefe))
+
 ## [1.6.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.6.0...v1.6.1) (2026-07-25)
 
 
