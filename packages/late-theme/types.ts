@@ -6,7 +6,11 @@ export type AccentName =
   | "emerald"
   | "rose"
   | "amber"
-  | "cyan";
+  | "cyan"
+  | "pink"
+  | "orange"
+  | "teal"
+  | "purple";
 
 export interface AccentVars {
   primary: string;

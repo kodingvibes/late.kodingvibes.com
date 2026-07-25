@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Check, Sun, Moon, Palette } from "lucide-react";
 import { useTheme, ACCENT_NAMES } from "@/providers/theme-provider";
 import { ACCENT_SWATCHES } from "@late/theme";
@@ -29,9 +30,9 @@ export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
     };
   }, [onClose]);
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-menu-backdrop"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-menu-backdrop"
       onClick={onClose}
     >
       <div
@@ -91,7 +92,7 @@ export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
             <label className="text-xs font-semibold uppercase tracking-wider opacity-70">
               Color de acento
             </label>
-            <div className="mt-2 grid grid-cols-6 gap-2">
+            <div className="mt-2 grid grid-cols-5 gap-2">
               {ACCENT_NAMES.map((name) => (
                 <button
                   key={name}
@@ -127,6 +128,7 @@ export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

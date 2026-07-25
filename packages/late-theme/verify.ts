@@ -31,7 +31,7 @@ function contrastRatio(hex1: string, hex2: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-const DARK_BG = "#0b1120";
+const DARK_BG = "#020617";
 const LIGHT_BG = "#f8fafc";
 const DARK_SURFACE = "#0f172a";
 const LIGHT_SURFACE = "#ffffff";
@@ -72,5 +72,5 @@ if (errors.length > 0) {
   for (const e of errors) console.error(`  - ${e}`);
   process.exit(1);
 } else {
-  console.log("OK: all 6 accents × 2 modes pass WCAG AA thresholds.");
+  console.log(`OK: all ${Object.keys(ACCENT_VARS).length} accents × 2 modes pass WCAG AA thresholds.`);
 }
