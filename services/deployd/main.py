@@ -33,7 +33,7 @@ REPOS = {
     "late.kodingvibes.com": {
         "path": "/root/late.kodingvibes.com",
         "branch": "main",
-        "deploy": "shell_and_backend",
+        "deploy": "shell_only",
     },
     "late-micro-radio": {
         "path": "/root/late-micro-radio",
@@ -44,6 +44,11 @@ REPOS = {
         "path": "/root/late-micro-chat",
         "branch": "main",
         "deploy": "micro_chat",
+    },
+    "late-chat-service": {
+        "path": "/root/late-chat-service",
+        "branch": "main",
+        "deploy": "chat_service",
     },
 }
 
@@ -136,10 +141,6 @@ def paths_changed(repo_path: str, prefixes: list[str]) -> bool:
     return False
 
 
-def chat_bridge_changed(repo_path: str) -> bool:
-    return paths_changed(repo_path, ["services/chat-bridge/"])
-
-
 def deployd_changed(repo_path: str) -> bool:
     return paths_changed(repo_path, ["services/deployd/"])
 
@@ -193,26 +194,26 @@ def reload_nginx(log: list[str]) -> int:
     return rc
 
 
-CHAT_BRIDGE_RESTART_SCRIPT = os.environ.get(
-    "CHAT_BRIDGE_RESTART_SCRIPT",
-    "/root/late.kodingvibes.com/scripts/restart-chat-bridge-docker.sh",
+CHAT_SERVICE_RESTART_SCRIPT = os.environ.get(
+    "CHAT_SERVICE_RESTART_SCRIPT",
+    "/root/late-chat-service/scripts/deploy.sh",
 )
 
 
-def restart_chat_bridge(log: list[str]) -> int:
-    log.append(f"[{now_iso()}] restarting chat-bridge service")
-    rc, out, err = run(["bash", CHAT_BRIDGE_RESTART_SCRIPT])
+def deploy_chat_service(repo_path: str, log: list[str]) -> int:
+    log.append(f"[{now_iso()}] running late-chat-service deploy.sh")
+    rc, out, err = run(["bash", CHAT_SERVICE_RESTART_SCRIPT])
     log.append(out.rstrip())
     if err:
         log.append(f"stderr: {err.rstrip()}")
     if rc != 0:
-        log.append(f"chat-bridge restart failed: {rc}")
+        log.append(f"late-chat-service deploy failed: {rc}")
     return rc
 
 
-def healthcheck_chat_bridge(log: list[str]) -> int:
-    """Verify the chat-bridge /healthz endpoint is reachable."""
-    log.append(f"[{now_iso()}] healthchecking chat-bridge /healthz")
+def healthcheck_chat_service(log: list[str]) -> int:
+    """Verify the late-chat-service /healthz endpoint is reachable."""
+    log.append(f"[{now_iso()}] healthchecking late-chat-service /healthz")
     rc, out, err = run(
         [
             "bash",
@@ -224,27 +225,25 @@ def healthcheck_chat_bridge(log: list[str]) -> int:
         ]
     )
     if rc != 0:
-        log.append(f"chat-bridge healthcheck failed: {err.rstrip()}")
+        log.append(f"late-chat-service healthcheck failed: {err.rstrip()}")
     else:
-        log.append("chat-bridge healthcheck passed")
+        log.append("late-chat-service healthcheck passed")
     return rc
 
 
-def deploy_shell_and_backend(repo_path: str, log: list[str]) -> int:
+def deploy_shell_only(repo_path: str, log: list[str]) -> int:
+    # ponytail: late-chat-service owns its own restart and
+    # healthcheck. The shell deploy only rebuilds + copies the
+    # React bundle and reloads nginx. Pushing chat code to the
+    # shell repo used to be a way to bounce the chat; the new
+    # shape is: chat lives at kodingvibes/late-chat-service
+    # with its own webhook.
     if extract_vendor(log) != 0:
         return 1
     if build_shell(log) != 0:
         return 1
     if copy_shell_to_www(log) != 0:
         return 1
-
-    # Always restart chat-bridge on shell deploys: even if only the router code
-    # changed (e.g. a new endpoint), the running process must pick it up.
-    if restart_chat_bridge(log) != 0:
-        return 1
-    if healthcheck_chat_bridge(log) != 0:
-        return 1
-
     if reload_nginx(log) != 0:
         return 1
 
@@ -301,9 +300,10 @@ def deploy_micro_chat(repo_path: str, log: list[str]) -> int:
 
 
 DEPLOYERS = {
-    "shell_and_backend": deploy_shell_and_backend,
+    "shell_only": deploy_shell_only,
     "micro_radio": deploy_micro_radio,
     "micro_chat": deploy_micro_chat,
+    "chat_service": deploy_chat_service,
 }
 
 
