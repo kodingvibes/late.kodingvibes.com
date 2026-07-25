@@ -265,8 +265,16 @@
     var bearer = session.session_id;
     var REFRESH_MS = 30000;
     function refresh() {{
-      fetch('/dashboard', {{ headers: {{ 'Authorization': 'Bearer ' + bearer }}, cache: 'no-store' }})
+      fetch('/dashboard', {{ headers: {{ 'Authorization': 'Bearer ' + bearer }}, cache: 'no-store', redirect: 'manual' }})
         .then(function(r) {{
+          // type 'opaqueredirect' means the server returned a
+          // 302 (session expired). Bounce the user through
+          // the shell's login gate, with the dashboard as the
+          // post-login destination.
+          if (r.type === 'opaqueredirect' || r.status === 0) {{
+            window.location.href = '/irc?next=/dashboard';
+            return null;
+          }}
           if (r.status === 401 || r.status === 403) {{
             document.body.innerHTML = '<div class="container"><div class="header"><div class="title">late · dashboard</div></div><div class="card"><h2>auth</h2><p style="color: var(--rose);">Session expired or not super_admin. Sign in again from <a style="color: var(--indigo);" href="/irc">/irc</a>.</p></div></div>';
             return null;
