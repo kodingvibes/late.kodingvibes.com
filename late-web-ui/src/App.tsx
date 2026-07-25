@@ -40,7 +40,11 @@ function MicroLoader() {
 function microReady(pathname: string): boolean {
   if (typeof window === "undefined") return false;
   if (pathname === "/icecast") return Boolean(window.RadioEngine);
-  if (pathname === "/irc")     return Boolean((window as unknown as { ChatEngine?: unknown }).ChatEngine);
+  if (pathname === "/irc")
+    return Boolean(
+      (window as unknown as { ChatEngine?: unknown }).ChatEngine &&
+        (window as unknown as { LateSession?: unknown }).LateSession,
+    );
   return true;
 }
 
