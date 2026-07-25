@@ -104,6 +104,36 @@
   .row .count {{ width: 4.5rem; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; color: var(--text); font-size: .8125rem; }}
   .row .bar {{ flex: 1; margin-top: 0; }}
   .muted {{ color: var(--muted-2); }}
+  /* ponytail: a thin sparkline-style chart under each
+     gauge. SVG fills the box width via preserveAspectRatio.
+     Stroke is the same indigo as the bar; the fill is a
+     soft gradient that hints at the area. */
+  .chart {{
+    margin-top: .5rem; height: 36px; line-height: 0;
+  }}
+  .chart svg {{ width: 100%; height: 100%; display: block; }}
+  /* Time-range selector: 5 small buttons that share state
+     across charts. Active button is filled; the rest are
+     ghost-styled. */
+  .rangebar {{
+    display: flex; align-items: center; gap: .5rem;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: .75rem; padding: .5rem .75rem;
+  }}
+  .rangebar-label {{
+    color: var(--muted-2); font-size: .75rem; text-transform: uppercase;
+    letter-spacing: .05em; margin-right: .25rem;
+  }}
+  .range-btn {{
+    background: transparent; color: var(--muted);
+    border: 1px solid var(--border); border-radius: .5rem;
+    padding: .25rem .625rem; font-size: .75rem; font-weight: 600;
+    cursor: pointer; transition: all .15s; font-family: inherit;
+  }}
+  .range-btn:hover {{ color: var(--text); border-color: var(--border-strong); }}
+  .range-btn.active {{
+    background: var(--indigo); color: white; border-color: var(--indigo);
+  }}
 </style>
 </head>
 <body>
@@ -136,6 +166,7 @@
         <div class="num">{cpu_pct}%</div>
         <div class="lbl">busy across all cores</div>
         <div class="bar {cpu_bar_class}"><span style="width: {cpu_bar_width}%;"></span></div>
+        <div class="chart" data-metric="cpu"><svg viewBox="0 0 200 36" preserveAspectRatio="none"></svg></div>
       </div>
     </div>
     <div class="card">
@@ -144,6 +175,7 @@
         <div class="num">{mem_pct}%</div>
         <div class="lbl">{mem_used} / {mem_total}</div>
         <div class="bar {mem_bar_class}"><span style="width: {mem_bar_width}%;"></span></div>
+        <div class="chart" data-metric="memory"><svg viewBox="0 0 200 36" preserveAspectRatio="none"></svg></div>
       </div>
     </div>
     <div class="card">
@@ -152,8 +184,22 @@
         <div class="num">{swap_pct}%</div>
         <div class="lbl">{swap_used} / {swap_total}</div>
         <div class="bar {swap_bar_class}"><span style="width: {swap_bar_width}%;"></span></div>
+        <div class="chart" data-metric="swap"><svg viewBox="0 0 200 36" preserveAspectRatio="none"></svg></div>
       </div>
     </div>
+  </div>
+
+  <!-- Time range selector. Buttons share state across the
+       three charts and are persisted in localStorage so a
+       reload keeps the same view. The JS wires them up
+       after the page renders. -->
+  <div class="rangebar" style="margin-bottom: 1rem;">
+    <span class="rangebar-label">time range</span>
+    <button class="range-btn" data-range="1h">1h</button>
+    <button class="range-btn" data-range="6h">6h</button>
+    <button class="range-btn" data-range="24h">24h</button>
+    <button class="range-btn" data-range="7d">7d</button>
+    <button class="range-btn" data-range="30d">30d</button>
   </div>
 
   <div class="grid grid-3" style="margin-bottom: 1rem;">
@@ -261,6 +307,100 @@
     }}
     var bearer = session.session_id;
     var REFRESH_MS = 30000;
+    var RANGE_KEY = 'late.dashboard.range';
+    var currentRange = (function() {{
+      try {{ return localStorage.getItem(RANGE_KEY) || '1h'; }}
+      catch (e) {{ return '1h'; }}
+    }})();
+    var METRICS = ['cpu', 'memory', 'swap'];
+
+    // ponytail: draw a line chart from a list of {{t,v}}
+    // samples. SVG is 200x36 with preserveAspectRatio="none",
+    // so the line stretches to whatever width the box has.
+    // We don't draw axes (no room on a 36px-tall sparkline);
+    // the gauge above the chart is the legend.
+    function drawChart(svg, samples) {{
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      if (!samples || samples.length < 2) {{
+        var txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        txt.setAttribute('x', '100'); txt.setAttribute('y', '22');
+        txt.setAttribute('text-anchor', 'middle');
+        txt.setAttribute('fill', '#475569'); txt.setAttribute('font-size', '9');
+        txt.setAttribute('font-family', 'ui-monospace, monospace');
+        txt.textContent = 'no data';
+        svg.appendChild(txt);
+        return;
+      }}
+      var W = 200, H = 36;
+      var t0 = samples[0].t, t1 = samples[samples.length - 1].t;
+      var dt = Math.max(t1 - t0, 1);
+      var maxV = 100;  // percentages cap at 100
+      // Gradient fill
+      var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      defs.innerHTML = '<linearGradient id="g" x1="0" y1="0" x2="0" y2="1">' +
+        '<stop offset="0" stop-color="#6366f1" stop-opacity=".45"/>' +
+        '<stop offset="1" stop-color="#6366f1" stop-opacity="0"/>' +
+        '</linearGradient>';
+      svg.appendChild(defs);
+      // Path data
+      var pts = samples.map(function(s) {{
+        var x = (s.t - t0) * W / dt;
+        var y = H - (Math.max(0, Math.min(s.v, maxV)) / maxV) * H;
+        return [x, y];
+      }});
+      var lineD = pts.map(function(p, i) {{ return (i ? 'L' : 'M') + p[0].toFixed(2) + ',' + p[1].toFixed(2); }}).join(' ');
+      var areaD = lineD + ' L' + W + ',' + H + ' L0,' + H + ' Z';
+      var area = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      area.setAttribute('d', areaD); area.setAttribute('fill', 'url(#g)');
+      svg.appendChild(area);
+      var line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      line.setAttribute('d', lineD);
+      line.setAttribute('fill', 'none');
+      line.setAttribute('stroke', '#6366f1');
+      line.setAttribute('stroke-width', '1.25');
+      line.setAttribute('stroke-linejoin', 'round');
+      line.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(line);
+    }}
+
+    function fetchOne(metric) {{
+      return fetch('/dashboard/data?metric=' + encodeURIComponent(metric) + '&range=' + encodeURIComponent(currentRange), {{
+        headers: {{ 'Authorization': 'Bearer ' + bearer }},
+        cache: 'no-store',
+      }}).then(function(r) {{
+        if (!r.ok) throw new Error('http ' + r.status);
+        return r.json();
+      }});
+    }}
+
+    function refreshCharts() {{
+      var svgs = document.querySelectorAll('.chart svg');
+      var byMetric = {{}};
+      for (var i = 0; i < svgs.length; i++) {{
+        var m = svgs[i].parentElement.getAttribute('data-metric');
+        byMetric[m] = svgs[i];
+      }}
+      METRICS.forEach(function(m) {{
+        if (!byMetric[m]) return;
+        fetchOne(m).then(function(j) {{ drawChart(byMetric[m], j.samples); }}).catch(function(e) {{ console.error('chart ' + m, e); }});
+      }});
+    }}
+
+    function setRange(r) {{
+      currentRange = r;
+      try {{ localStorage.setItem(RANGE_KEY, r); }} catch (e) {{}}
+      document.querySelectorAll('.range-btn').forEach(function(b) {{
+        if (b.getAttribute('data-range') === r) b.classList.add('active');
+        else b.classList.remove('active');
+      }});
+      refreshCharts();
+    }}
+
+    document.querySelectorAll('.range-btn').forEach(function(b) {{
+      b.addEventListener('click', function() {{ setRange(b.getAttribute('data-range')); }});
+    }});
+    setRange(currentRange);
+
     function showShell() {{
       document.body.innerHTML = '<div class="container"><div class="header"><div class="title">late · dashboard</div></div><div class="card"><h2>auth</h2><p class="muted">Sesión expirada o sin permisos de super_admin. <a style="color: var(--indigo);" href="/irc?next=/dashboard">Iniciar sesión de nuevo</a>.</p></div></div>';
     }}
@@ -285,7 +425,6 @@
           console.error('dashboard refresh failed', e);
         }});
     }}
-    refresh();
     setInterval(refresh, REFRESH_MS);
   }})();
 </script>

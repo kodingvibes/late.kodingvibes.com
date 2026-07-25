@@ -33,8 +33,10 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable, Optional
 
 import httpx
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+
+import dashboard_history  # time-series store for the gauge charts
 
 # ponytail: same file as the auth service, shared secret.
 # late-deployd lives in the same trust zone as late-auth-service
@@ -451,6 +453,19 @@ async def gather_all() -> dict:
     pairs = await asyncio.gather(*[_one(n, f) for n, f in gatherers])
     out = dict(pairs)
     out["gathered_at"] = datetime.now(ZoneInfo("UTC")).isoformat()  # human-friendly copy below
+    # ponytail: append one sample per metric so the time-range
+    # chart has data to draw. /proc reads are cheap; this is
+    # bounded by the GATHER_TIMEOUT_S of each gatherer, so
+    # we never block the request.
+    system = out.get("system", {}) or {}
+    if system.get("cpu_pct") is not None:
+        dashboard_history.append_sample("cpu", system["cpu_pct"])
+    mem = system.get("memory", {}) or {}
+    if mem.get("pct") is not None:
+        dashboard_history.append_sample("memory", mem["pct"])
+    swap = system.get("swap", {}) or {}
+    if swap.get("pct") is not None:
+        dashboard_history.append_sample("swap", swap["pct"])
     return out
 
 
@@ -727,3 +742,37 @@ def register(app: FastAPI) -> None:
             payload = {k: {} for k in payload}
             payload["gathered_at"] = "—"
         return HTMLResponse(render_dashboard_html(payload))
+
+    @app.get("/dashboard/data", response_class=JSONResponse)
+    async def dashboard_data(
+        request: Request,
+        metric: str = Query("cpu"),
+        range: str = Query("1h"),
+    ):
+        # Auth: same gate as the HTML page. On no-auth we
+        # return the redirect so the JS can navigate through
+        # the shell's login flow. The data fetch is
+        # never made on first paint (the page is fully
+        # rendered from the HTML payload); the JS only
+        # asks for samples after a successful super_admin
+        # auth.
+        try:
+            await require_super_admin(request)
+        except HTTPException as e:
+            return JSONResponse({"error": e.detail}, status_code=e.status_code)
+        range_seconds = dashboard_history.RANGES.get(range)
+        if range_seconds is None:
+            raise HTTPException(400, f"unknown range: {range}")
+        if metric not in ("cpu", "memory", "swap"):
+            raise HTTPException(400, f"unknown metric: {metric}")
+        # Roll the file at read time so it doesn't grow
+        # unbounded under a long-running deployd.
+        dashboard_history.roll()
+        samples = dashboard_history.read_samples(metric, range_seconds)
+        return JSONResponse({
+            "metric": metric,
+            "range": range,
+            "range_seconds": range_seconds,
+            "samples": samples,
+            "fetched_at": datetime.now(ZoneInfo("UTC")).isoformat(),
+        })
