@@ -105,7 +105,12 @@ async def require_super_admin(request: Request) -> dict:
         raise HTTPException(503, f"late-auth unreachable: {e}")
     if r.status_code != 200:
         raise HTTPException(401, "invalid session")
-    user = r.json()
+    body = r.json()
+    # /api/auth/validate returns {"valid": true, "user": {...}}; we
+    # want the user dict for the role check. If the body is already
+    # a user-shaped dict (id, global_role), use it as-is so we
+    # don't break against an older or simpler late-auth.
+    user = body.get("user", body) if isinstance(body, dict) else body
     if user.get("global_role") != "super_admin":
         raise HTTPException(403, "super_admin required")
     return user
