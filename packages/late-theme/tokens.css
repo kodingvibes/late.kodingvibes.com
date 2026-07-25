@@ -66,7 +66,7 @@ html {
 
 body {
   margin: 0;
-  background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 45%, #0b1120);
+  background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 45%, #020617);
   background-image:
     radial-gradient(
       ellipse 85% 65% at 20% 0%,
@@ -199,7 +199,7 @@ input[type="range"] {
 :root.theme-light .shadow-soft { box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.1), 0 2px 4px -2px rgba(15, 23, 42, 0.1); }
 :root.theme-light .shadow-card { box-shadow: 0 10px 40px -10px rgba(15, 23, 42, 0.12); }
 
-:root.theme-light .bg-accent\/15 { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 12%, transparent); }
+:root.theme-light .bg-accent\/15 { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 15%, transparent); }
 
 :root.theme-light .text-rose-400 { color: #e11d48; }
 :root.theme-light .hover\:bg-rose-50:hover { background-color: #fff1f2; }
@@ -364,17 +364,6 @@ input[type="range"] {
   border: 1px solid rgba(148, 163, 184, 0.15);
 }
 
-.text-gradient {
-  background: linear-gradient(135deg, #818cf8 0%, #c084fc 50%, #f472b6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.bg-hero-gradient {
-  background: linear-gradient(135deg, #1e1b4b 0%, #3730a3 35%, #7c3aed 70%, #db2777 100%);
-}
-
 /* Shadows. */
 .shadow-soft {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
@@ -409,12 +398,12 @@ input[type="range"] {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, var(--accent-primary, #6366f1) 0%, #7c3aed 100%);
+  background: linear-gradient(180deg, var(--accent-primary, #6366f1) 0%, var(--accent-soft, #818cf8) 100%);
   border-radius: 9999px;
   border: 3px solid #020617;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, var(--accent-soft, #818cf8) 0%, #a78bfa 100%);
+  background: linear-gradient(180deg, var(--accent-soft, #818cf8) 0%, var(--accent-ring, #a5b4fc) 100%);
 }
 ::-webkit-scrollbar-corner {
   background: transparent;

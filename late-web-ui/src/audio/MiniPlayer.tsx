@@ -280,7 +280,7 @@ export default function MiniPlayer() {
 
               <button
                 onClick={engine.toggle}
-                className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 text-white flex items-center justify-center flex-shrink-0 transition-all hover:scale-105 active:scale-95 shadow-md hover:shadow-lg select-none"
+                className="w-10 h-10 rounded-full bg-accent hover:bg-accent-soft text-white flex items-center justify-center flex-shrink-0 transition-all hover:scale-105 active:scale-95 shadow-md hover:shadow-lg select-none"
                 aria-label={state.playing ? "Pausar" : "Reproducir"}
               >
                 {state.loading ? (
@@ -345,7 +345,7 @@ export default function MiniPlayer() {
 
               <button
                 onClick={engine.toggle}
-                className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 text-white flex items-center justify-center flex-shrink-0 transition-all hover:scale-105 active:scale-95 shadow-md select-none"
+                className="w-9 h-9 rounded-full bg-accent hover:bg-accent-soft text-white flex items-center justify-center flex-shrink-0 transition-all hover:scale-105 active:scale-95 shadow-md select-none"
                 aria-label={state.playing ? "Pausar" : "Reproducir"}
               >
                 {state.loading ? (

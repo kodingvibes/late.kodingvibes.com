@@ -47,7 +47,7 @@ describe('SiteHeader', () => {
     vi.mocked(useLocation).mockReturnValue({ pathname: '/icecast', search: '', hash: '', state: null, key: '' })
     const { container } = render(wrap(<SiteHeader />))
     const radioLink = container.querySelector('a[href="/icecast"]')
-    expect(radioLink?.className).toMatch(/bg-accent|bg-indigo/)
+    expect(radioLink?.className).toMatch(/bg-accent/)
   })
 
   it('shows the online count badge when ChatEngine publishes it', () => {

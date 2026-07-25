@@ -4,7 +4,7 @@ import path from 'node:path'
 
 export default defineConfig({
   plugins: [react()],
-  resolve: { alias: { '@': path.resolve(__dirname, './src') } },
+  resolve: { alias: { '@': path.resolve(__dirname, './src'), '@late/theme': path.resolve(__dirname, '../packages/late-theme') } },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
