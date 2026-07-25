@@ -4,6 +4,7 @@
 - **Repo root:** `.` — React shell + Icecast streaming infra + late-deployd (auto-deploy webhook receiver)
 - **Domain:** https://late.kodingvibes.com
 - **Github:** `git@github.com:kodingvibes/late.kodingvibes.com.git` (origin/main)
+- **SSH access:** `ssh -p 2223 root@late.kodingvibes.com` — uses `~/.ssh/id_ed25519` in this environment.
 - **Local paths (production host):**
   - Shell:            `/root/late.kodingvibes.com`  (this repo)
   - late-auth-service: `/root/late-auth-service`     (separate repo, port 9300)
