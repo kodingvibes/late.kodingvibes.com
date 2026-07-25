@@ -1,3 +1,10 @@
+# [1.14.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.13.0...v1.14.0) (2026-07-25)
+
+
+### Features
+
+* **shell:** mount the new dashboard MF on /dashboard ([8d2042c](https://github.com/kodingvibes/late.kodingvibes.com/commit/8d2042cfd93264aa31acf6c6e5eaaaf64674683d))
+
 # [1.13.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.12.1...v1.13.0) (2026-07-25)
 
 
