@@ -1,3 +1,10 @@
+# [1.16.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.15.0...v1.16.0) (2026-07-25)
+
+
+### Features
+
+* **deployd:** report disk inodes and top dirs in dashboard ([9fe8721](https://github.com/kodingvibes/late.kodingvibes.com/commit/9fe8721386804602dcd1eabce602f42cd57b87b9))
+
 # [1.15.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.14.0...v1.15.0) (2026-07-25)
 
 
