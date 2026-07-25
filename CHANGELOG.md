@@ -1,3 +1,15 @@
+# [1.10.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.9.1...v1.10.0) (2026-07-25)
+
+
+### Bug Fixes
+
+* **deployd:** redirect /dashboard to /irc?next=/dashboard on no auth ([18baa6f](https://github.com/kodingvibes/late.kodingvibes.com/commit/18baa6faafeb19ccd9a0d9d803ce490ab034f056))
+
+
+### Features
+
+* **shell:** honor ?next= for post-login redirects ([62d3d39](https://github.com/kodingvibes/late.kodingvibes.com/commit/62d3d39e4068a9b1eb2d662f9d9333088401415c))
+
 ## [1.9.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.9.0...v1.9.1) (2026-07-25)
 
 
