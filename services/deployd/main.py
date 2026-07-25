@@ -26,7 +26,9 @@ from typing import Optional
 
 from fastapi import FastAPI, Header, HTTPException, Request
 
-import dashboard  # late-deployd dashboard at /dashboard
+import dashboard_history  # noqa: F401  (sibling module)
+import dashboard_state  # noqa: F401
+import dashboard_ws  # late-deployd dashboard WS + REST endpoints
 
 # ---------------------------------------------------------------------------
 # Config
@@ -65,7 +67,7 @@ LOG_DIR = Path(os.environ.get("LOG_DIR", "/var/log/late-deployd"))
 SECRET = os.environ.get("GITHUB_WEBHOOK_SECRET", "").encode()
 
 APP = FastAPI(title="late-deployd")
-dashboard.register(APP)
+dashboard_ws.register(APP)
 
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
