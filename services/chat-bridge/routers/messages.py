@@ -46,7 +46,14 @@ async def list_messages_route(channel_id: int, before: Optional[int] = None, lim
     # ponytail: every user belongs to every channel, so there is no
     # "not a member" failure mode here. The mute check stays in the
     # write path below.
-    return list_messages(channel_id, before, limit)
+    return list_messages(
+        channel_id,
+        before,
+        limit,
+        session_user_id=session["user_id"],
+        session_display_name=session.get("display_name", ""),
+        session_email=session.get("email", ""),
+    )
 
 @router.post("/api/chat/channels/{channel_id}/messages")
 async def send_message_route(channel_id: int, req: SendMessageRequest, session: dict = Depends(get_session_user)):
@@ -73,7 +80,15 @@ async def send_message_route(channel_id: int, req: SendMessageRequest, session: 
         ).fetchone()
         if member and member["muted"] and member["role"] not in ("admin", "mod"):
             raise HTTPException(403, "Estás silenciado en este canal")
-    msg = send_message(channel_id, session["user_id"], content, is_action, req.reply_to)
+    msg = send_message(
+        channel_id,
+        session["user_id"],
+        content,
+        is_action,
+        req.reply_to,
+        session_display_name=session.get("display_name", ""),
+        session_email=session.get("email", ""),
+    )
     payload = {"type": "message", "data": msg}
     await ws_manager.broadcast_to_channel_members(channel_id, payload, exclude={session["user_id"]})
     # Ponytail: receipts — anyone with a live WS at send time counts as
@@ -249,7 +264,13 @@ async def forward_message_route(message_id: int, req: ForwardRequest, session: d
             raise HTTPException(403, "Not a member of the target channel")
         if target_member["muted"] and target_member["role"] not in ("admin", "mod"):
             raise HTTPException(403, "Estás silenciado en el canal destino")
-    new_msg = forward_message(message_id, req.target_channel_id, session["user_id"])
+    new_msg = forward_message(
+        message_id,
+        req.target_channel_id,
+        session["user_id"],
+        session_display_name=session.get("display_name", ""),
+        session_email=session.get("email", ""),
+    )
     payload = {"type": "message", "data": new_msg}
     await ws_manager.broadcast_to_channel_members(req.target_channel_id, payload, exclude={session["user_id"]})
     with db() as conn:
