@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.7.0...v1.8.0) (2026-07-25)
+
+
+### Features
+
+* **deployd:** super_admin dashboard at /dashboard ([735eca8](https://github.com/kodingvibes/late.kodingvibes.com/commit/735eca88941fcc70a3eb2f1055b932334cc39d8f))
+
 # [1.7.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.6.1...v1.7.0) (2026-07-25)
 
 
