@@ -1,7 +1,7 @@
 import time
 import pytest
 from core.db import db
-from repositories.attachments import create_attachment, get_attachment, get_attachment_meta, delete_expired
+from repositories.attachments import create_attachment, get_attachment, get_attachment_meta, get_attachments_meta_bulk, delete_expired
 from repositories.users import upsert_user
 from repositories.channels import create_channel
 
@@ -44,6 +44,51 @@ def test_get_attachment_meta(user_and_channel):
     assert meta is not None
     assert "storage_path" not in meta
     assert meta["kind"] == "video"
+
+
+def test_get_attachment_meta_includes_dimensions(user_and_channel):
+    user, ch = user_and_channel
+    now = int(time.time())
+    create_attachment("att4", ch["id"], user["id"], "image", "wide.png", "image/png", 1024, "/tmp/wide.png", now + 86400, width=1920, height=1080)
+    meta = get_attachment_meta("att4")
+    assert meta is not None
+    assert meta["width"] == 1920
+    assert meta["height"] == 1080
+
+
+def test_create_attachment_with_dimensions(user_and_channel):
+    user, ch = user_and_channel
+    now = int(time.time())
+    create_attachment("att5", ch["id"], user["id"], "image", "tall.jpg", "image/jpeg", 2048, "/tmp/tall.jpg", now + 86400, width=600, height=1200)
+    row = get_attachment("att5")
+    assert row["width"] == 600
+    assert row["height"] == 1200
+
+
+def test_get_attachments_meta_bulk_empty():
+    assert get_attachments_meta_bulk([]) == {}
+
+
+def test_get_attachments_meta_bulk_returns_match(user_and_channel):
+    user, ch = user_and_channel
+    now = int(time.time())
+    create_attachment("bulk1", ch["id"], user["id"], "image", "a.png", "image/png", 1, "/tmp/a", now + 86400, width=100, height=200)
+    create_attachment("bulk2", ch["id"], user["id"], "image", "b.png", "image/png", 1, "/tmp/b", now + 86400, width=300, height=400)
+    metas = get_attachments_meta_bulk(["bulk1", "bulk2", "missing"])
+    assert set(metas.keys()) == {"bulk1", "bulk2"}
+    assert metas["bulk1"]["width"] == 100
+    assert metas["bulk1"]["height"] == 200
+    assert metas["bulk2"]["width"] == 300
+    assert metas["bulk2"]["height"] == 400
+
+
+def test_get_attachments_meta_bulk_dedupes_and_strips_extension(user_and_channel):
+    user, ch = user_and_channel
+    now = int(time.time())
+    create_attachment("dedup", ch["id"], user["id"], "image", "x.png", "image/png", 1, "/tmp/x", now + 86400, width=10, height=20)
+    metas = get_attachments_meta_bulk(["dedup", "dedup.png", "dedup"])
+    assert list(metas.keys()) == ["dedup"]
+    assert metas["dedup"]["width"] == 10
 
 
 def test_delete_expired(user_and_channel):

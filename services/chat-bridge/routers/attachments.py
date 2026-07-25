@@ -3,6 +3,7 @@ import secrets
 import subprocess
 import time
 import mimetypes
+import json
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse
@@ -13,6 +14,44 @@ from repositories.attachments import create_attachment, get_attachment, get_atta
 from core.db import db
 
 router = APIRouter()
+
+
+def _probe_dimensions(path: str) -> tuple[int | None, int | None]:
+    """Run ffprobe on `path` and return (width, height) of the
+    first video stream, or (None, None) when ffprobe isn't
+    available, the file isn't a recognized media, or the stream
+    has no width/height (e.g. audio-only). Used to populate
+    attachment.width/height so the chat client can reserve a
+    placeholder of the exact size. """
+    try:
+        out = subprocess.run(
+            [
+                "ffprobe", "-v", "error",
+                "-select_streams", "v:0",
+                "-show_entries", "stream=width,height",
+                "-of", "json",
+                path,
+            ],
+            capture_output=True,
+            timeout=10,
+        )
+    except Exception:
+        return (None, None)
+    if out.returncode != 0:
+        return (None, None)
+    try:
+        data = json.loads(out.stdout.decode("utf-8", errors="ignore") or "{}")
+    except Exception:
+        return (None, None)
+    streams = data.get("streams") or []
+    if not streams:
+        return (None, None)
+    s = streams[0]
+    w = s.get("width")
+    h = s.get("height")
+    if not isinstance(w, int) or not isinstance(h, int) or w <= 0 or h <= 0:
+        return (None, None)
+    return (w, h)
 
 @router.post("/api/chat/channels/{channel_id}/attachments")
 async def upload_attachment(request: Request, channel_id: int, file: UploadFile = File(...), session: dict = Depends(get_session_user)):
@@ -43,7 +82,13 @@ async def upload_attachment(request: Request, channel_id: int, file: UploadFile 
     except OSError as e:
         raise HTTPException(500, f"Failed to write file: {e}")
     size_bytes = len(contents)
+    width: int | None = None
+    height: int | None = None
     if kind == "image":
+        # Probe the original first — the user uploaded these
+        # pixels, and if ffprobe fails on the source we want to
+        # fall back to no dimensions rather than throwing.
+        width, height = _probe_dimensions(storage_path)
         webp_path = storage_path + ".webp"
         try:
             subprocess.run(["ffmpeg", "-y", "-i", storage_path, "-c:v", "libwebp", "-quality", "80", "-preset", "picture", webp_path],
@@ -59,7 +104,17 @@ async def upload_attachment(request: Request, channel_id: int, file: UploadFile 
         except Exception:
             if os.path.exists(webp_path):
                 os.remove(webp_path)
-    if kind == "video":
+        # Re-probe after the webp rewrite so the dimensions match
+        # the file we're actually going to serve. Falls back to
+        # the pre-rewrite values if the second probe fails.
+        if width is None or height is None:
+            width, height = _probe_dimensions(storage_path)
+        else:
+            w2, h2 = _probe_dimensions(storage_path)
+            if w2 and h2:
+                width, height = w2, h2
+    elif kind == "video":
+        width, height = _probe_dimensions(storage_path)
         compressed_path = storage_path + ".compressed.mp4"
         try:
             subprocess.run(["ffmpeg", "-y", "-i", storage_path,
@@ -77,10 +132,10 @@ async def upload_attachment(request: Request, channel_id: int, file: UploadFile 
         except Exception:
             if os.path.exists(compressed_path):
                 os.remove(compressed_path)
-    create_attachment(fid, channel_id, session["user_id"], kind, filename, mime, size_bytes, storage_path, expires_at)
+    create_attachment(fid, channel_id, session["user_id"], kind, filename, mime, size_bytes, storage_path, expires_at, width, height)
     base_url = str(request.base_url).rstrip("/")
     url = f"{base_url}/api/chat/attachments/{fid}{ext}"
-    return {"id": fid, "url": url, "kind": kind, "filename": filename, "mime": mime, "size_bytes": size_bytes, "created_at": now, "expires_at": expires_at}
+    return {"id": fid, "url": url, "kind": kind, "filename": filename, "mime": mime, "size_bytes": size_bytes, "width": width, "height": height, "created_at": now, "expires_at": expires_at}
 
 @router.get("/api/chat/attachments/{attachment_id}")
 async def get_attachment_route(attachment_id: str):

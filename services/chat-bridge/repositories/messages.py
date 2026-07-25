@@ -3,6 +3,102 @@ import time
 import re
 from core.db import db
 from repositories import receipts as receipts_repo
+from repositories.attachments import get_attachments_meta_bulk
+
+
+# ponytail: single source of truth for the attachment marker
+# prefixes the chat client uses. Mirrors the parsers in
+# late-micro-chat/src/lib/chat/domain/parsers.ts. Keep them in
+# lockstep or message → attachment joins go silent.
+_ATTACHMENT_MARKERS = (
+    "__late_image__:",
+    "__late_images__:",
+    "__late_audio__:",
+    "__late_video__:",
+    "__late_document__:",
+    "__late_file__:",
+    "__late_voicenote__:",
+)
+
+
+def _extract_attachment_id(content: str) -> str | None:
+    """Ponytail: return the first attachment id referenced by a
+    message's content marker, or None if the message doesn't carry
+    one. For `__late_images__` (multi-image gallery) we return
+    just the first id — the chat client only needs a single
+    placeholder for the bubble, and the client-side parser walks
+    the gallery separately. Returning the first id keeps the
+    placeholder code path identical for single and multi image
+    messages. The remainder of the marker payload (the JSON list)
+    is ignored. """
+    if not content:
+        return None
+    idx = content.find("__late_images__:")
+    if idx >= 0:
+        rest = content[idx + len("__late_images__:"):].strip()
+        try:
+            ids = json.loads(rest)
+        except Exception:
+            return None
+        if isinstance(ids, list) and ids:
+            first = ids[0]
+            if isinstance(first, str) and first:
+                return first
+        return None
+    for prefix in _ATTACHMENT_MARKERS:
+        idx = content.find(prefix)
+        if idx >= 0:
+            rest = content[idx + len(prefix):].strip()
+            # Stop at the next whitespace or end of string.
+            for i, ch in enumerate(rest):
+                if ch.isspace():
+                    rest = rest[:i]
+                    break
+            return rest or None
+    return None
+
+
+def _attach_attachment_meta(msgs: list[dict]) -> None:
+    """Ponytail: in-place, for each message that references an
+    attachment (via its content marker), set `m['attachment']` to
+    the attachment's metadata. Messages without an attachment
+    marker, with a marker that doesn't resolve, or whose
+    attachment is missing/expired, are left as-is (the field stays
+    absent). The chat client uses this to pre-allocate a row of
+    the exact image size before the bytes load. One bulk query for
+    the whole list — no N+1. """
+    if not msgs:
+        return
+    wanted: list[str] = []
+    msg_to_id: dict[int, str] = {}
+    for m in msgs:
+        aid = _extract_attachment_id(m.get("content", ""))
+        if not aid:
+            continue
+        msg_to_id[m["id"]] = aid
+        wanted.append(aid)
+    if not wanted:
+        return
+    metas = get_attachments_meta_bulk(wanted)
+    now = int(time.time())
+    for m in msgs:
+        aid = msg_to_id.get(m["id"])
+        if not aid:
+            continue
+        meta = metas.get(aid)
+        if not meta:
+            continue
+        if meta.get("expires_at") and meta["expires_at"] < now:
+            continue
+        m["attachment"] = {
+            "id": meta["id"],
+            "kind": meta["kind"],
+            "filename": meta["filename"],
+            "mime": meta["mime"],
+            "size_bytes": meta["size_bytes"],
+            "width": meta.get("width"),
+            "height": meta.get("height"),
+        }
 
 
 def _attach_receipts(msgs: list[dict]) -> None:
@@ -115,6 +211,7 @@ def send_message(channel_id: int, user_id: int, content: str, is_action: bool = 
         msg["reactions"] = []
         msg["hidden"] = False
         msg["forwarded_from"] = None
+    _attach_attachment_meta([msg])
     _attach_receipts([msg])
     return msg
 
@@ -181,6 +278,7 @@ def list_messages(channel_id: int, before: int | None = None, limit: int = 50) -
                             m["reply_to_content"] = rt_content[:200]
                         m["reply_to_author"] = rt["display_name"]
                         m["reply_to_user_id"] = rt["id"]
+    _attach_attachment_meta(msgs)
     _attach_receipts(msgs)
     return msgs
 
@@ -219,7 +317,11 @@ def get_message(message_id: int) -> dict | None:
             "SELECT m.*, u.display_name, u.email FROM messages m JOIN users u ON u.id = m.user_id WHERE m.id = ?",
             (message_id,),
         ).fetchone()
-    return dict(row) if row else None
+    if not row:
+        return None
+    msg = dict(row)
+    _attach_attachment_meta([msg])
+    return msg
 
 
 def forward_message(orig_id: int, target_channel_id: int, user_id: int) -> dict:
@@ -352,5 +454,6 @@ def forward_message(orig_id: int, target_channel_id: int, user_id: int) -> dict:
             "user_id": orig["user_id"],
             "display_name": orig["display_name"],
         }
+    _attach_attachment_meta([new_msg])
     _attach_receipts([new_msg])
     return new_msg

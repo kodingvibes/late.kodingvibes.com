@@ -97,6 +97,89 @@ def test_list_messages(consume_admin_slot, make_session):
     assert msgs[1]["content"] == "Msg 2"
 
 
+# ponytail: messages whose content carries an attachment marker
+# should be enriched with the attachment's metadata (id, kind,
+# mime, width, height) so the chat client can reserve a row of
+# the exact size before the bytes load. The JOIN is done via a
+# single batched query per `list_messages` / `send_message` call
+# to avoid N+1 on the channel history load.
+def test_send_image_message_attaches_image_meta(consume_admin_slot, make_session):
+    from repositories.attachments import create_attachment
+    _, user = make_session()
+    with db() as conn:
+        lobby = conn.execute("SELECT id FROM channels WHERE name = '#lobby'").fetchone()
+    now = int(time.time())
+    create_attachment("img1", lobby["id"], user["id"], "image", "photo.png", "image/png", 1024, "/tmp/photo.png", now + 86400, width=1280, height=720)
+    msg = send_message(lobby["id"], user["id"], "Check this __late_image__:img1")
+    assert msg.get("attachment") is not None
+    assert msg["attachment"]["id"] == "img1"
+    assert msg["attachment"]["kind"] == "image"
+    assert msg["attachment"]["width"] == 1280
+    assert msg["attachment"]["height"] == 720
+
+
+def test_send_text_message_has_no_attachment(consume_admin_slot, make_session):
+    _, user = make_session()
+    with db() as conn:
+        lobby = conn.execute("SELECT id FROM channels WHERE name = '#lobby'").fetchone()
+    msg = send_message(lobby["id"], user["id"], "Just text")
+    assert "attachment" not in msg
+
+
+def test_send_image_message_with_missing_attachment_no_crash(consume_admin_slot, make_session):
+    _, user = make_session()
+    with db() as conn:
+        lobby = conn.execute("SELECT id FROM channels WHERE name = '#lobby'").fetchone()
+    msg = send_message(lobby["id"], user["id"], "Ghost __late_image__:doesnotexist")
+    assert "attachment" not in msg
+
+
+def test_send_audio_message_attaches_audio_meta(consume_admin_slot, make_session):
+    from repositories.attachments import create_attachment
+    _, user = make_session()
+    with db() as conn:
+        lobby = conn.execute("SELECT id FROM channels WHERE name = '#lobby'").fetchone()
+    now = int(time.time())
+    create_attachment("aud1", lobby["id"], user["id"], "audio", "song.mp3", "audio/mpeg", 4096, "/tmp/song.mp3", now + 86400)
+    msg = send_message(lobby["id"], user["id"], "Listen __late_audio__:aud1")
+    assert msg.get("attachment") is not None
+    assert msg["attachment"]["id"] == "aud1"
+    assert msg["attachment"]["kind"] == "audio"
+    # No dimensions for non-image kinds.
+    assert msg["attachment"]["width"] is None
+    assert msg["attachment"]["height"] is None
+
+
+def test_list_messages_enriches_attachments(consume_admin_slot, make_session):
+    from repositories.attachments import create_attachment
+    _, user = make_session()
+    with db() as conn:
+        lobby = conn.execute("SELECT id FROM channels WHERE name = '#lobby'").fetchone()
+    now = int(time.time())
+    create_attachment("img2", lobby["id"], user["id"], "image", "wide.jpg", "image/jpeg", 2048, "/tmp/wide.jpg", now + 86400, width=1920, height=1080)
+    send_message(lobby["id"], user["id"], "Caption __late_image__:img2")
+    msgs = list_messages(lobby["id"])
+    assert len(msgs) == 1
+    assert msgs[0].get("attachment") is not None
+    assert msgs[0]["attachment"]["width"] == 1920
+    assert msgs[0]["attachment"]["height"] == 1080
+
+
+def test_list_messages_skips_expired_attachments(consume_admin_slot, make_session):
+    from repositories.attachments import create_attachment
+    _, user = make_session()
+    with db() as conn:
+        lobby = conn.execute("SELECT id FROM channels WHERE name = '#lobby'").fetchone()
+    now = int(time.time())
+    # Insert a row whose attachment has already expired. The
+    # join should drop the `attachment` key — the client falls
+    # back to the max-h-72 placeholder path.
+    create_attachment("exp1", lobby["id"], user["id"], "image", "old.png", "image/png", 1024, "/tmp/old.png", now - 100, width=100, height=100)
+    send_message(lobby["id"], user["id"], "Old pic __late_image__:exp1")
+    msgs = list_messages(lobby["id"])
+    assert "attachment" not in msgs[0]
+
+
 def test_list_messages_with_before(consume_admin_slot, make_session):
     _, user = make_session()
     with db() as conn:

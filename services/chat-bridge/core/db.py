@@ -121,6 +121,14 @@ def _run_migrations(conn):
     _run_idempotent_alter(conn, "messages", "reply_to", "INTEGER REFERENCES messages(id) ON DELETE SET NULL")
     _run_idempotent_alter(conn, "messages", "hidden", "INTEGER NOT NULL DEFAULT 0")
     _run_idempotent_alter(conn, "channel_members", "muted", "INTEGER NOT NULL DEFAULT 0")
+    # ponytail: image dimensions on attachments so the chat
+    # client can reserve a placeholder of the exact size before
+    # the bytes load. NULL when the file is not an image, when
+    # ffprobe can't read the stream, or when the row predates
+    # the migration. The client falls back to max-h-72 when the
+    # field is missing.
+    _run_idempotent_alter(conn, "attachments", "width", "INTEGER")
+    _run_idempotent_alter(conn, "attachments", "height", "INTEGER")
     for col, col_type in [
         ("forwarded_from_message_id", "INTEGER REFERENCES messages(id) ON DELETE SET NULL"),
         ("forwarded_from_channel_id", "INTEGER REFERENCES channels(id) ON DELETE SET NULL"),
