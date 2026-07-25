@@ -1,3 +1,10 @@
+## [1.20.6](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.20.5...v1.20.6) (2026-07-25)
+
+
+### Bug Fixes
+
+* **shell:** make header, menus, modals, cards and player translucent ([3f535e5](https://github.com/kodingvibes/late.kodingvibes.com/commit/3f535e59b7d80f57cfadf2cebf323188610679af))
+
 ## [1.20.5](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.20.4...v1.20.5) (2026-07-25)
 
 
