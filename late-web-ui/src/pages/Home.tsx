@@ -25,7 +25,7 @@ export function Home() {
     .filter((s): s is StreamInfo => Boolean(s));
 
   return (
-    <div className={`relative min-h-screen ${isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-100"} pb-24`}>
+    <div className={`relative min-h-screen ${isLight ? "text-slate-900" : "text-slate-100"} pb-24`}>
       {/* ponytail: a faint accent halo behind the page title so
        * the chosen colour bleeds into the surface without
        * hijacking the whole backdrop. The radial gradient

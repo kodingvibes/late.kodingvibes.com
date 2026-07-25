@@ -57,6 +57,16 @@ export interface LateTheme {
   accentPrimary: string;
   accentSoft: string;
   accentRing: string;
+  /** ponytail: pre-baked rgba tones for the page-level halo.
+   *  Two pairs: dark + light, so the chosen accent actually
+   *  tints the body backdrop. The CSS reads them via
+   *  var(--accent-glow-a) so the minifier can't collapse
+   *  the color-mix back to 0% opacity inside a gradient
+   *  stop. */
+  accentGlowA: string;
+  accentGlowB: string;
+  accentGlowALight: string;
+  accentGlowBLight: string;
 }
 
 declare global {

@@ -132,7 +132,7 @@ export function Profile() {
   };
 
   return (
-    <div className={`relative min-h-screen ${isLight ? "bg-slate-50" : "bg-slate-950"}`}>
+    <div className={`relative min-h-screen`}>
       {/* ponytail: a faint accent halo behind the profile so the
        * chosen colour tints the page surface. The gradient
        * tracks --accent-primary so picking rose / amber /

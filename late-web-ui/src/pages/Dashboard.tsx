@@ -4,7 +4,7 @@
 // all gated routes via <RequireAuth> in App.tsx.
 export function Dashboard() {
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen">
       <div id="micro-dashboard-root" />
     </div>
   );
