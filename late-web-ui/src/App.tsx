@@ -6,6 +6,8 @@ import MiniPlayer from "@/audio/MiniPlayer";
 import { UpdateNotice } from "@/components/UpdateNotice";
 import { AppLoader } from "@/components/AppLoader";
 import { RequireAuth } from "@/components/RequireAuth";
+import { ThemeProvider } from "@/providers/theme-provider";
+import { Profile } from "@/pages/Profile";
 import useViewportHeight from "@/lib/use-viewport-height";
 
 // Each route renders a microfront slot. The actual UI lives in
@@ -68,21 +70,24 @@ export function App() {
   }, []);
 
   return (
-    <BrowserRouter>
-      <SiteHeader />
-      <Suspense fallback={<AppLoader label="cargando ruta…" />}>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/icecast" element={<><Icecast /><MicroLoader /></>} />
-          <Route path="/irc" element={<><Irc /><MicroLoader /></>} />
-          <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
-        </Routes>
-      </Suspense>
-      {/* ponytail: MiniPlayer is global, outside the router. It subscribes
-          to window.RadioEngine (provided by late-micro-radio). The micro
-          also keeps the <audio> element alive across navigations. */}
-      <MiniPlayer />
-      <UpdateNotice />
-    </BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter>
+        <SiteHeader />
+        <Suspense fallback={<AppLoader label="cargando ruta…" />}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/icecast" element={<><Icecast /><MicroLoader /></>} />
+            <Route path="/irc" element={<><Irc /><MicroLoader /></>} />
+            <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+            <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+          </Routes>
+        </Suspense>
+        {/* ponytail: MiniPlayer is global, outside the router. It subscribes
+            to window.RadioEngine (provided by late-micro-radio). The micro
+            also keeps the <audio> element alive across navigations. */}
+        <MiniPlayer />
+        <UpdateNotice />
+      </BrowserRouter>
+    </ThemeProvider>
   );
 }

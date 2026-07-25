@@ -18,6 +18,9 @@ export interface LateUser {
   email: string;
   name: string | null;
   display_name: string | null;
+  avatar_url?: string | null;
+  global_role?: string;
+  preferences?: Record<string, unknown>;
 }
 
 export interface LateSession {
@@ -116,6 +119,30 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return res.json();
 }
 
+/**
+ * Update the current user's profile fields. The /api/auth/me PATCH
+ * endpoint accepts display_name, name, avatar_url, and preferences;
+ * the late-auth-service validates display_name uniqueness and merges
+ * the preferences blob. Returns the refreshed user dict.
+ *
+ * On success the local session cache is updated in place so the rest
+ * of the shell sees the new values without a hard reload.
+ */
+export async function updateProfile(patch: {
+  display_name?: string;
+  name?: string;
+  avatar_url?: string | null;
+  preferences?: Record<string, unknown>;
+}): Promise<LateUser> {
+  const me = await api<LateUser>("/api/auth/me", {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  const cur = getSavedSession();
+  if (cur) saveSession({ ...cur, user: me });
+  return me;
+}
+
 const authFatalHandlers = new Set<() => void>();
 
 export function onAuthFatal(handler: () => void): () => void {
@@ -140,6 +167,7 @@ export function installLateSession() {
     },
     ssoUrl: SSO_URL,
     api,
+    updateProfile,
     logout: async () => {
       await serverLogout();
       clearSession();
