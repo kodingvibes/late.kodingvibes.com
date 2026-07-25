@@ -1,3 +1,10 @@
+## [1.20.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.20.0...v1.20.1) (2026-07-25)
+
+
+### Bug Fixes
+
+* **shell:** tint backgrounds with the chosen accent ([dfcfee3](https://github.com/kodingvibes/late.kodingvibes.com/commit/dfcfee37ccd3c75b738a049059aaf87d40971f6b))
+
 # [1.20.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.19.1...v1.20.0) (2026-07-25)
 
 
