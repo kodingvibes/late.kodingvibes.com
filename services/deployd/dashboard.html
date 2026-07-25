@@ -405,9 +405,19 @@
       document.body.innerHTML = '<div class="container"><div class="header"><div class="title">late · dashboard</div></div><div class="card"><h2>auth</h2><p class="muted">Sesión expirada o sin permisos de super_admin. <a style="color: var(--indigo);" href="/irc?next=/dashboard">Iniciar sesión de nuevo</a>.</p></div></div>';
     }}
     function refresh() {{
+      // ponytail: the first /dashboard render is always
+      // empty (no Authorization on a top-level nav). After
+      // we fetch the real payload and replace the document,
+      // the new <script> runs again — and would otherwise
+      // fire another refresh, ad infinitum. We use a
+      // localStorage flag as a one-shot breaker: set it
+      // right before document.write so the script in the
+      // incoming HTML skips the initial refresh.
+      try {{ localStorage.setItem('late.dashboard.replacing', '1'); }} catch (e) {{}}
       fetch('/dashboard', {{ headers: {{ 'Authorization': 'Bearer ' + bearer }}, cache: 'no-store' }})
         .then(function(r) {{
           if (r.status === 401 || r.status === 403) {{
+            try {{ localStorage.removeItem('late.dashboard.replacing'); }} catch (e) {{}}
             showShell();
             return null;
           }}
@@ -422,8 +432,24 @@
           }}
         }})
         .catch(function(e) {{
+          try {{ localStorage.removeItem('late.dashboard.replacing'); }} catch (e) {{}}
           console.error('dashboard refresh failed', e);
         }});
+    }}
+
+    // Skip the first refresh if we got here from a
+    // document.write() replacement (the previous script
+    // set the flag right before its write). The flag is
+    // cleared so the next setInterval tick can refresh
+    // normally.
+    var skipFirst = (function() {{
+      try {{ return localStorage.getItem('late.dashboard.replacing') === '1'; }}
+      catch (e) {{ return false; }}
+    }})();
+    if (skipFirst) {{
+      try {{ localStorage.removeItem('late.dashboard.replacing'); }} catch (e) {{}}
+    }} else {{
+      refresh();
     }}
     setInterval(refresh, REFRESH_MS);
   }})();
