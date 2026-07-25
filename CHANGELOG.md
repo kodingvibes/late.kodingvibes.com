@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.3.0...v1.4.0) (2026-07-25)
+
+
+### Features
+
+* **shell:** own the chat session, expose window.LateSession to the chat micro ([5dcb10b](https://github.com/kodingvibes/late.kodingvibes.com/commit/5dcb10b6b29d5080d5213ac3c8deb85f6c93cec0))
+
 # [1.3.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.2.0...v1.3.0) (2026-07-25)
 
 
