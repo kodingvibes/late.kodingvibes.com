@@ -1,3 +1,10 @@
+# [1.19.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.18.0...v1.19.0) (2026-07-25)
+
+
+### Features
+
+* **shell:** standardise menu animations at 1000ms ([5990d09](https://github.com/kodingvibes/late.kodingvibes.com/commit/5990d09de0bd19c0d6cdc543e3c0a7bceed3ea24))
+
 # [1.18.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.17.0...v1.18.0) (2026-07-25)
 
 
