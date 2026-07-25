@@ -1,3 +1,10 @@
+# [1.11.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.10.2...v1.11.0) (2026-07-25)
+
+
+### Features
+
+* **deployd:** show timestamps in America/Santiago (CLT) ([ec0df37](https://github.com/kodingvibes/late.kodingvibes.com/commit/ec0df375390a508dc4e5082e0ec781f448b47870))
+
 ## [1.10.2](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.10.1...v1.10.2) (2026-07-25)
 
 
