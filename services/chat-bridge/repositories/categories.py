@@ -4,8 +4,12 @@ from core.db import db
 
 def list_categories() -> list[dict]:
     with db() as conn:
+        # ponytail: explicit columns. The shape is part of the WS /
+        # REST contract; new columns (server_id, is_collapsed) get
+        # added by deliberate code review, not by accident.
         rows = conn.execute(
-            "SELECT * FROM channel_categories ORDER BY position, name"
+            "SELECT id, server_id, name, position, is_collapsed, created_at "
+            "FROM channel_categories ORDER BY position, name"
         ).fetchall()
     return [dict(r) for r in rows]
 
@@ -19,7 +23,11 @@ def create_category(name: str) -> dict:
             (name, now),
         )
         cat_id = cur.lastrowid
-        cat = conn.execute("SELECT * FROM channel_categories WHERE id = ?", (cat_id,)).fetchone()
+        cat = conn.execute(
+            "SELECT id, server_id, name, position, is_collapsed, created_at "
+            "FROM channel_categories WHERE id = ?",
+            (cat_id,),
+        ).fetchone()
     return dict(cat)
 
 
@@ -36,7 +44,11 @@ def update_category(category_id: int, patch: dict) -> dict | None:
         if updates:
             params.append(category_id)
             conn.execute(f"UPDATE channel_categories SET {', '.join(updates)} WHERE id = ?", params)
-        cat = conn.execute("SELECT * FROM channel_categories WHERE id = ?", (category_id,)).fetchone()
+        cat = conn.execute(
+            "SELECT id, server_id, name, position, is_collapsed, created_at "
+            "FROM channel_categories WHERE id = ?",
+            (category_id,),
+        ).fetchone()
     return dict(cat) if cat else None
 
 

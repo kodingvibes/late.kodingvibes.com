@@ -15,8 +15,15 @@ def create_attachment(id: str, channel_id: int, user_id: int, kind: str, filenam
 def get_attachment(attachment_id: str) -> dict | None:
     base_id = attachment_id.split(".")[0]
     with db() as conn:
+        # ponytail: explicit columns. The result drives a FileResponse
+        # — the consumer uses storage_path, mime, filename, expires_at
+        # only. Spelled out so a future migration that adds, say, a
+        # thumbnail_path column doesn't accidentally serve stale data
+        # through a new key.
         row = conn.execute(
-            "SELECT * FROM attachments WHERE id = ?", (base_id,),
+            "SELECT id, channel_id, user_id, kind, filename, mime, size_bytes, "
+            "storage_path, created_at, expires_at, width, height "
+            "FROM attachments WHERE id = ?", (base_id,),
         ).fetchone()
     return dict(row) if row else None
 

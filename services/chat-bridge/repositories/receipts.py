@@ -11,7 +11,6 @@ def mark_delivered(message_id: int, user_ids: list[int]) -> list[int]:
     user_id) PK makes INSERT OR IGNORE idempotent. """
     if not user_ids:
         return []
-    now = int(time.time())
     with db() as conn:
         existing = {
             r["user_id"] for r in conn.execute(
@@ -20,10 +19,22 @@ def mark_delivered(message_id: int, user_ids: list[int]) -> list[int]:
             ).fetchall()
         }
         new = [u for u in user_ids if u not in existing]
-        for uid in new:
+        if new:
+            now = int(time.time())
+            # ponytail: single INSERT…VALUES with a multi-row VALUES
+            # list. N round-trips collapsed into one. (u, message_id, now)
+            # is a 3-tuple per user; the executemany-style bind keeps
+            # the driver happy without a Python loop on the conn.
+            placeholders = ",".join(
+                f"(?, {message_id}, ?)" for _ in new
+            )
+            params: list = []
+            for uid in new:
+                params.extend([uid, now])
             conn.execute(
-                "INSERT OR IGNORE INTO message_delivered (message_id, user_id, delivered_at) VALUES (?, ?, ?)",
-                (message_id, uid, now),
+                f"INSERT OR IGNORE INTO message_delivered (user_id, message_id, delivered_at) "
+                f"VALUES {placeholders}",
+                params,
             )
     return new
 

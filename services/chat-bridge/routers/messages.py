@@ -123,8 +123,17 @@ async def edit_message_route(message_id: int, req: EditMessageRequest, session: 
     if len(content) > 2_000_000:
         raise HTTPException(400, "Message too long")
     with db() as conn:
+        # ponytail: only the columns this route reads. m.* would drag
+        # every forwarded_from_* and the full content body just to
+        # compare it to a re-extract later; the edit window check only
+        # needs created_at, the author check needs user_id, the
+        # hidden guard needs hidden, the OG re-resolve compares the
+        # new content against the old one.
         msg = conn.execute(
-            "SELECT m.*, c.id as ch_id FROM messages m JOIN channels c ON c.id = m.channel_id WHERE m.id = ?",
+            "SELECT m.user_id, m.content, m.hidden, m.created_at, m.is_action, "
+            "c.id AS ch_id "
+            "FROM messages m JOIN channels c ON c.id = m.channel_id "
+            "WHERE m.id = ?",
             (message_id,),
         ).fetchone()
         if not msg:
@@ -162,8 +171,13 @@ async def edit_message_route(message_id: int, req: EditMessageRequest, session: 
 async def hide_message_route(message_id: int, session: dict = Depends(get_session_user)):
     from core.auth import require_admin_or_mod
     with db() as conn:
+        # ponytail: narrow select. The route only checks author and
+        # channel; the message body, OG data, forwarded_from fields
+        # are irrelevant for a hide.
         msg = conn.execute(
-            "SELECT m.*, c.id as ch_id FROM messages m JOIN channels c ON c.id = m.channel_id WHERE m.id = ?",
+            "SELECT m.user_id, c.id AS ch_id "
+            "FROM messages m JOIN channels c ON c.id = m.channel_id "
+            "WHERE m.id = ?",
             (message_id,),
         ).fetchone()
         if not msg:
@@ -181,8 +195,11 @@ async def hide_message_route(message_id: int, session: dict = Depends(get_sessio
 async def delete_message_route(message_id: int, session: dict = Depends(get_session_user)):
     from core.auth import require_admin_or_mod
     with db() as conn:
+        # ponytail: same shape as hide. Only author + channel.
         msg = conn.execute(
-            "SELECT m.*, c.id as ch_id FROM messages m JOIN channels c ON c.id = m.channel_id WHERE m.id = ?",
+            "SELECT m.user_id, c.id AS ch_id "
+            "FROM messages m JOIN channels c ON c.id = m.channel_id "
+            "WHERE m.id = ?",
             (message_id,),
         ).fetchone()
         if not msg:
@@ -205,15 +222,23 @@ async def forward_message_route(message_id: int, req: ForwardRequest, session: d
     if not target_ch:
         raise HTTPException(404, "Target channel not found")
     with db() as conn:
+        # ponytail: only the columns this gate reads. The full row
+        # (content, OG, forwarded_from, reply_to, edited_at) is
+        # loaded by repositories.messages.forward_message — the
+        # router only needs hidden + channel_id to enforce policy.
         orig = conn.execute(
-            "SELECT m.*, u.display_name, u.email, c.name as ch_name FROM messages m "
-            "JOIN users u ON u.id = m.user_id JOIN channels c ON c.id = m.channel_id WHERE m.id = ?",
+            "SELECT m.hidden, m.channel_id, m.user_id "
+            "FROM messages m WHERE m.id = ?",
             (message_id,),
         ).fetchone()
         if not orig:
             raise HTTPException(404, "Original message not found")
         if orig["hidden"]:
             raise HTTPException(400, "Cannot forward a hidden or deleted message")
+        # ponytail: every user is in every channel, so the source-
+        # channel check below always passes. Kept as a documented
+        # no-op to surface a future re-permissioning in code review
+        # if is_member ever stops returning True.
         if not is_member(orig["channel_id"], session["user_id"]):
             raise HTTPException(403, "Not a member of the source channel")
         target_member = conn.execute(

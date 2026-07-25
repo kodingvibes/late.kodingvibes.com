@@ -6,6 +6,19 @@ from repositories import receipts as receipts_repo
 from repositories.attachments import get_attachments_meta_bulk
 
 
+# ponytail: single source of truth for the message columns. Migrations
+# keep adding forwarded_from_*, reply_to, hidden, etc. Spelling them
+# out here means a new column is one place to add (and one place
+# review sees), not five. All SELECTs of m.* below use this constant.
+_MESSAGE_COLUMNS = (
+    "m.id, m.channel_id, m.user_id, m.content, m.is_action, m.og_data, "
+    "m.created_at, m.edited_at, m.reply_to, m.hidden, "
+    "m.forwarded_from_message_id, m.forwarded_from_channel_id, "
+    "m.forwarded_from_user_id, m.forwarded_from_channel_name, "
+    "m.forwarded_from_display_name"
+)
+
+
 # ponytail: single source of truth for the attachment marker
 # prefixes the chat client uses. Mirrors the parsers in
 # late-micro-chat/src/lib/chat/domain/parsers.ts. Keep them in
@@ -141,7 +154,8 @@ def send_message(channel_id: int, user_id: int, content: str, is_action: bool = 
         )
         msg_id = cur.lastrowid
         msg = dict(conn.execute(
-            "SELECT m.*, u.display_name, u.email FROM messages m JOIN users u ON u.id = m.user_id WHERE m.id = ?",
+            f"SELECT {_MESSAGE_COLUMNS}, u.display_name, u.email "
+            "FROM messages m JOIN users u ON u.id = m.user_id WHERE m.id = ?",
             (msg_id,),
         ).fetchone())
         reply_to_content = None
@@ -220,13 +234,15 @@ def list_messages(channel_id: int, before: int | None = None, limit: int = 50) -
     with db() as conn:
         if before:
             rows = conn.execute(
-                "SELECT m.*, u.display_name, u.email FROM messages m JOIN users u ON u.id = m.user_id "
+                f"SELECT {_MESSAGE_COLUMNS}, u.display_name, u.email "
+                "FROM messages m JOIN users u ON u.id = m.user_id "
                 "WHERE m.channel_id = ? AND m.id < ? ORDER BY m.id DESC LIMIT ?",
                 (channel_id, before, min(limit, 100)),
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT m.*, u.display_name, u.email FROM messages m JOIN users u ON u.id = m.user_id "
+                f"SELECT {_MESSAGE_COLUMNS}, u.display_name, u.email "
+                "FROM messages m JOIN users u ON u.id = m.user_id "
                 "WHERE m.channel_id = ? ORDER BY m.id DESC LIMIT ?",
                 (channel_id, min(limit, 100)),
             ).fetchall()
@@ -243,6 +259,25 @@ def list_messages(channel_id: int, before: int | None = None, limit: int = 50) -
             reactions_by_msg = {mid: [] for mid in ids}
             for r in rx_rows:
                 reactions_by_msg[r["message_id"]].append(dict(r))
+            # ponytail: batch the reply_to lookups. Old code did one
+            # SELECT per message that had a reply_to, which turned
+            # "load 20 messages" into 1 + 20 + N (reactions) queries.
+            # The new shape pulls every referenced reply_to at once
+            # with a single IN (...) and stitches the result back in
+            # Python. Same wall-clock for an empty reply graph,
+            # collapses N+1 when it isn't.
+            reply_to_ids = {m["reply_to"] for m in msgs if m.get("reply_to")}
+            replies_by_id: dict[int, dict] = {}
+            if reply_to_ids:
+                reply_placeholders = ",".join("?" * len(reply_to_ids))
+                reply_rows = conn.execute(
+                    f"SELECT m.id, m.content, u.display_name, u.id AS user_id "
+                    f"FROM messages m JOIN users u ON u.id = m.user_id "
+                    f"WHERE m.id IN ({reply_placeholders})",
+                    list(reply_to_ids),
+                ).fetchall()
+                for r in reply_rows:
+                    replies_by_id[r["id"]] = dict(r)
             for m in msgs:
                 raw = m.get("og_data")
                 if raw:
@@ -266,10 +301,7 @@ def list_messages(channel_id: int, before: int | None = None, limit: int = 50) -
                     m.pop(_k, None)
                 reply_to_id = m.get("reply_to")
                 if reply_to_id:
-                    rt = conn.execute(
-                        "SELECT m.content, u.display_name, u.id FROM messages m JOIN users u ON u.id = m.user_id WHERE m.id = ?",
-                        (reply_to_id,),
-                    ).fetchone()
+                    rt = replies_by_id.get(reply_to_id)
                     if rt:
                         rt_content = rt["content"]
                         if "__late_image__:" in rt_content or "__late_images__:" in rt_content:
@@ -277,7 +309,7 @@ def list_messages(channel_id: int, before: int | None = None, limit: int = 50) -
                         else:
                             m["reply_to_content"] = rt_content[:200]
                         m["reply_to_author"] = rt["display_name"]
-                        m["reply_to_user_id"] = rt["id"]
+                        m["reply_to_user_id"] = rt["user_id"]
     _attach_attachment_meta(msgs)
     _attach_receipts(msgs)
     return msgs
@@ -314,7 +346,8 @@ def clear_og_data(message_id: int):
 def get_message(message_id: int) -> dict | None:
     with db() as conn:
         row = conn.execute(
-            "SELECT m.*, u.display_name, u.email FROM messages m JOIN users u ON u.id = m.user_id WHERE m.id = ?",
+            f"SELECT {_MESSAGE_COLUMNS}, u.display_name, u.email "
+            "FROM messages m JOIN users u ON u.id = m.user_id WHERE m.id = ?",
             (message_id,),
         ).fetchone()
     if not row:
@@ -327,7 +360,7 @@ def get_message(message_id: int) -> dict | None:
 def forward_message(orig_id: int, target_channel_id: int, user_id: int) -> dict:
     with db() as conn:
         orig = conn.execute(
-            "SELECT m.*, u.display_name, u.email, c.name as ch_name "
+            f"SELECT {_MESSAGE_COLUMNS}, u.display_name, u.email, c.name as ch_name "
             "FROM messages m "
             "JOIN users u ON u.id = m.user_id "
             "JOIN channels c ON c.id = m.channel_id "
@@ -356,31 +389,46 @@ def forward_message(orig_id: int, target_channel_id: int, user_id: int) -> dict:
         content = orig["content"]
         if len(content) > 2_000_000:
             raise ValueError("Message too long to forward")
+        # ponytail: pull every attachment expiry in one query instead
+        # of N round-trips. We collect the ids referenced by the
+        # marker payload up front, then do a single SELECT against
+        # attachments. Same logic, no per-id fan-out.
+        attachment_ids: list[str] = []
         for marker_prefix in ("__late_image__:", "__late_images__:", "__late_audio__:",
                               "__late_video__:", "__late_document__:", "__late_file__:"):
             idx = content.find(marker_prefix)
-            if idx >= 0:
-                rest = content[idx + len(marker_prefix):].strip()
-                if marker_prefix == "__late_images__":
-                    try:
-                        ids = json.loads(rest)
-                    except Exception:
-                        continue
-                    for aid in ids:
-                        att = conn.execute(
-                            "SELECT expires_at FROM attachments WHERE id = ?",
-                            (aid,),
-                        ).fetchone()
-                        if not att or att["expires_at"] < int(time.time()):
-                            raise ValueError(f"Attachment {aid} has expired, cannot forward")
-                else:
-                    att = conn.execute(
-                        "SELECT expires_at FROM attachments WHERE id = ?",
-                        (rest,),
-                    ).fetchone()
-                    if not att or att["expires_at"] < int(time.time()):
-                        raise ValueError("Attachment has expired, cannot forward")
-                break
+            if idx < 0:
+                continue
+            rest = content[idx + len(marker_prefix):].strip()
+            if marker_prefix == "__late_images__":
+                try:
+                    parsed = json.loads(rest)
+                except Exception:
+                    continue
+                if isinstance(parsed, list):
+                    attachment_ids.extend(aid for aid in parsed if isinstance(aid, str) and aid)
+            else:
+                # Stop at the next whitespace or end of string, same as
+                # the per-message _extract_attachment_id.
+                for i, ch in enumerate(rest):
+                    if ch.isspace():
+                        rest = rest[:i]
+                        break
+                if rest:
+                    attachment_ids.append(rest)
+            break
+        if attachment_ids:
+            placeholders = ",".join("?" * len(attachment_ids))
+            exp_rows = conn.execute(
+                f"SELECT id, expires_at FROM attachments WHERE id IN ({placeholders})",
+                attachment_ids,
+            ).fetchall()
+            exp_by_id = {r["id"]: r["expires_at"] for r in exp_rows}
+            now_ts = int(time.time())
+            for aid in attachment_ids:
+                exp = exp_by_id.get(aid)
+                if exp is None or exp < now_ts:
+                    raise ValueError(f"Attachment {aid} has expired, cannot forward")
         now = int(time.time())
         is_action = bool(orig["is_action"])
         cur = conn.execute(
@@ -396,7 +444,7 @@ def forward_message(orig_id: int, target_channel_id: int, user_id: int) -> dict:
         )
         new_id = cur.lastrowid
         new_msg = dict(conn.execute(
-            "SELECT m.*, u.display_name, u.email "
+            f"SELECT {_MESSAGE_COLUMNS}, u.display_name, u.email "
             "FROM messages m JOIN users u ON u.id = m.user_id WHERE m.id = ?",
             (new_id,),
         ).fetchone())

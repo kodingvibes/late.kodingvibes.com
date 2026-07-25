@@ -82,7 +82,16 @@ def list_channels(user_id: int) -> list[dict]:
 
 def get_channel(channel_id: int) -> dict | None:
     with db() as conn:
-        row = conn.execute("SELECT * FROM channels WHERE id = ?", (channel_id,)).fetchone()
+        # ponytail: explicit columns. Migrations have added channel_type,
+        # category_id, position after the original CREATE TABLE; SELECT *
+        # silently widens on every migration and tends to leak internal
+        # bookkeeping (created_by) into API responses.
+        row = conn.execute(
+            "SELECT id, name, description, is_public, created_by, created_at, "
+            "channel_type, category_id, position "
+            "FROM channels WHERE id = ?",
+            (channel_id,),
+        ).fetchone()
     return dict(row) if row else None
 
 

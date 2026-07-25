@@ -101,7 +101,14 @@ async def invite_user(channel_id: int, req: InviteRequest, session: dict = Depen
         raise HTTPException(404, "Channel not found")
     from repositories.users import get_user_by_id
     with db() as conn:
-        target = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+        # ponytail: only the columns this route actually reads (id,
+        # display_name). SELECT * would pull supabase_sub, last_seen,
+        # global_role, etc. for every invite — wasteful and a future
+        # leak vector if a sensitive column is ever added.
+        target = conn.execute(
+            "SELECT id, display_name FROM users WHERE email = ?",
+            (email,),
+        ).fetchone()
         if not target:
             raise HTTPException(404, "User not found")
     asyncio.create_task(send_to_kv("channel.invited", {
@@ -130,14 +137,19 @@ async def mark_read(channel_id: int, message_id: int, session: dict = Depends(ge
             "SELECT id FROM messages WHERE channel_id = ? AND id <= ? AND user_id != ?",
             (channel_id, message_id, session["user_id"]),
         ).fetchall()
-        now = int(time.time())
-        for r in rows:
+        if rows:
+            now = int(time.time())
+            # ponytail: one INSERT…SELECT instead of N round-trips.
+            # RETURNING + a LEFT JOIN against the existing rows tells
+            # us which ids were actually new without a second query.
             cur = conn.execute(
-                "INSERT OR IGNORE INTO message_reads (message_id, user_id, read_at) VALUES (?, ?, ?) RETURNING read_at",
-                (r["id"], session["user_id"], now),
+                "INSERT OR IGNORE INTO message_reads (message_id, user_id, read_at) "
+                "SELECT id, ?, ? FROM messages "
+                "WHERE channel_id = ? AND id <= ? AND user_id != ? "
+                "RETURNING message_id",
+                (session["user_id"], now, channel_id, message_id, session["user_id"]),
             )
-            if cur.fetchone():
-                newly_read.append(r["id"])
+            newly_read = [r["message_id"] for r in cur.fetchall()]
     if newly_read:
         await ws_manager.broadcast_to_channel_members(channel_id, {
             "type": "message_read",

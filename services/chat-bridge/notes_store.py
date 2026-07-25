@@ -69,7 +69,15 @@ def insert_note(
 
 
 def get_note(conn: sqlite3.Connection, note_id: str) -> dict | None:
-    row = conn.execute("SELECT * FROM voice_notes WHERE id = ?", (note_id,)).fetchone()
+    # ponytail: explicit columns instead of SELECT *. The shape is
+    # part of the public contract of this helper (returned straight
+    # to the WS layer); pulling every column and forgetting to
+    # export a new one is a class of bug we don't want here.
+    row = conn.execute(
+        "SELECT id, user_id, channel_id, duration_ms, amount, size_bytes, storage_path, mime, created_at "
+        "FROM voice_notes WHERE id = ?",
+        (note_id,),
+    ).fetchone()
     if row:
         return dict(row)
     return None

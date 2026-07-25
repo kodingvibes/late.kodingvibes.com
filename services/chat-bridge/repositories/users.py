@@ -1,10 +1,23 @@
 import time
 from core.db import db
 
+# ponytail: the full column set of the users table. Single source of
+# truth so the explicit SELECTs below stay in sync with migrations
+# (global_role was added later, display_name + last_seen are the
+# original create columns, etc.).
+_USER_COLUMNS = (
+    "id, supabase_sub, email, name, display_name, "
+    "created_at, last_seen, global_role"
+)
+
+
 def upsert_user(sub: str, email: str, name: str) -> dict:
     with db() as conn:
         now = int(time.time())
-        user = conn.execute("SELECT * FROM users WHERE supabase_sub = ?", (sub,)).fetchone()
+        user = conn.execute(
+            f"SELECT {_USER_COLUMNS} FROM users WHERE supabase_sub = ?",
+            (sub,),
+        ).fetchone()
         if not user:
             from core.auth import display_name_from_email
             display = display_name_from_email(email) or f"user{sub[:8]}"
@@ -30,18 +43,24 @@ def upsert_user(sub: str, email: str, name: str) -> dict:
         # been up a while. The cross-join runs here too so a brand-new
         # user shows up in every existing channel the moment their
         # session is created, no matter when the service last restarted.
+        # Single INSERT…SELECT instead of N round-trips.
         conn.execute(
             "INSERT OR IGNORE INTO channel_members (channel_id, user_id, joined_at) "
             "SELECT c.id, ?, ? FROM channels c",
             (user_id, now),
         )
-        user = dict(conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone())
-    return user
+        user = conn.execute(
+            f"SELECT {_USER_COLUMNS} FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+    return dict(user)
+
 
 def get_user_by_id(user_id: int) -> dict | None:
     with db() as conn:
         row = conn.execute("SELECT id, email, name, display_name FROM users WHERE id = ?", (user_id,)).fetchone()
     return dict(row) if row else None
+
 
 def update_user(user_id: int, updates: dict) -> dict | None:
     with db() as conn:
@@ -61,6 +80,7 @@ def update_user(user_id: int, updates: dict) -> dict | None:
         user = conn.execute("SELECT id, email, name, display_name FROM users WHERE id = ?", (user_id,)).fetchone()
     return dict(user) if user else None
 
+
 def search_users(q: str) -> list[dict]:
     like = f"%{q.lower()}%"
     with db() as conn:
@@ -70,6 +90,7 @@ def search_users(q: str) -> list[dict]:
             (like, like),
         ).fetchall()
     return [dict(r) for r in rows]
+
 
 def touch_last_seen(user_id: int):
     with db() as conn:

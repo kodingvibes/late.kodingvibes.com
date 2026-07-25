@@ -39,8 +39,13 @@ def change_mute(channel_id: int, target_user_id: int, muted: bool):
 
 def get_member(channel_id: int, user_id: int) -> dict | None:
     with db() as conn:
+        # ponytail: explicit columns. cm.* would expose last_read_message_id
+        # and joined_at — internal bookkeeping the API doesn't promise.
+        # Spelling out the contract here is the review surface.
         row = conn.execute(
-            "SELECT cm.*, u.display_name, u.email FROM channel_members cm "
+            "SELECT cm.channel_id, cm.user_id, cm.role, cm.muted, "
+            "u.display_name, u.email "
+            "FROM channel_members cm "
             "JOIN users u ON u.id = cm.user_id "
             "WHERE cm.channel_id = ? AND cm.user_id = ?",
             (channel_id, user_id),
