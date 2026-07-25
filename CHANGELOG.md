@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.4.0...v1.5.0) (2026-07-25)
+
+
+### Features
+
+* **shell:** point chat-session at /api/auth/* (late-auth-service) ([20d6c53](https://github.com/kodingvibes/late.kodingvibes.com/commit/20d6c531038f759c325292a83deb420384dbc23a))
+
 # [1.4.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.3.0...v1.4.0) (2026-07-25)
 
 
