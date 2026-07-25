@@ -1,27 +1,36 @@
 # late.kodingvibes.com — Global Context for LLM Agents
 
 ## Project
-- **Repo root:** `.` — React shell (late-web-ui) + 2 microfront repos (radio, chat) + Icecast streaming infra
+- **Repo root:** `.` — React shell + Icecast streaming infra + late-deployd (auto-deploy webhook receiver)
 - **Domain:** https://late.kodingvibes.com
 - **Github:** `git@github.com:kodingvibes/late.kodingvibes.com.git` (origin/main)
-- **Local paths:**
-  - Shell:    `/root/late.kodingvibes.com`
-  - Radio:    `/root/late-micro-radio`
-  - Chat:     `/root/late-micro-chat`
+- **Local paths (production host):**
+  - Shell:            `/root/late.kodingvibes.com`  (this repo)
+  - late-auth-service: `/root/late-auth-service`     (separate repo, port 9300)
+  - late-chat-service: `/root/late-chat-service`     (separate repo, port 9100, was `services/chat-bridge/`)
+  - late-micro-radio:  `/root/late-micro-radio`      (separate repo, frontend micro)
+  - late-micro-chat:   `/root/late-micro-chat`       (separate repo, frontend micro)
 
-## Topology (v1.30.0+)
+## Topology (v1.39.0+)
 
 ```
 late.kodingvibes.com/                (this repo, the shell)
 ├── late-web-ui/                    React shell (header, nav, MiniPlayer, Home)
 ├── scripts/                        Build scripts (radio/chat/vendor + soma relays)
 ├── infra/icecast/                  Icecast config
-└── services/chat-bridge/           chat-bridge (FastAPI, port 9100)
+└── services/deployd/               late-deployd (FastAPI webhook receiver, port 9200)
+
+/root/late-auth-service/             Repo independiente (auth: SSO, sessions, users)
+   FastAPI on :9300. Validate Bearer tokens. Source of truth for users + sessions.
+
+/root/late-chat-service/             Repo independiente (Fase 4+: el chat completo)
+   FastAPI on :9100. Owns messages, channels, attachments, voice notes.
+   Validates every Bearer token against late-auth-service.
 
 /root/late-micro-radio/              Repo independiente (Fase 2+: la radio completa)
    vite lib → /var/www/html/micro/radio/vX.Y.Z/entry.js + style.css
 
-/root/late-micro-chat/               Repo independiente (Fase 3+: el chat completo)
+/root/late-micro-chat/               Repo independiente (Fase 3+: el chat UI)
    vite lib → /var/www/html/micro/chat/vX.Y.Z/entry.js + style.css
 
 /var/www/html/vendor/vendor.js       React+ReactDOM bundleado (compartido shell+micros)
@@ -32,10 +41,11 @@ late.kodingvibes.com/                (this repo, the shell)
 | Service | Port | Notes |
 |---------|------|-------|
 | Icecast | 8000 | Docker container, config at `infra/icecast/icecast.xml` |
-| nginx (host) | 80/443 | Static files + proxies streams → Icecast `:8000`, chat-bridge `:9100` |
+| nginx (host) | 80/443 | Static files + proxies streams → Icecast `:8000`, late-auth `:9300`, late-chat `:9100` |
 | Vite (systemd, inactive) | 5173 | Dev server (inactive in prod; prod serves `/var/www/html/` static) |
-| chat-bridge (Docker) | 9100 | REST + WebSocket. JWT verified via `SSO_BRIDGE_SECRET` (must match Vercel prod env). |
-| late-deployd (systemd) | 9200 | GitHub webhook receiver. Exposed at `https://late.kodingvibes.com/deploy-webhook`. Auto-pulls + deploys on push to `main` for the managed repos. |
+| late-chat-service (Docker) | 9100 | REST + WebSocket. Container `late-chat-service`. Validates every Bearer token against late-auth. |
+| late-auth-service (systemd) | 9300 | Owns users + sessions. Validates tokens via `LATE_AUTH_SECRET`. SQLite at `/data/late-auth/auth.db`. |
+| late-deployd (systemd) | 9200 | GitHub webhook receiver. Exposed at `https://late.kodingvibes.com/deploy-webhook`. Auto-pulls + deploys on push to `main` for the 4 managed repos. |
 | late-micro-radio | (CDN) | Bundle ESM en `/micro/radio/vX.Y.Z/entry.js`. Posee `<audio>`, `AudioContext`, `AnalyserNode`. |
 | late-micro-chat | (CDN) | Bundle ESM en `/micro/chat/vX.Y.Z/entry.js`. Posee voice rooms + WebSocket. |
 
@@ -49,30 +59,51 @@ late.kodingvibes.com/                (this repo, the shell)
 - Admin password: `changeme`
 - Config: `infra/icecast/icecast.xml` (bind-mounted in Docker)
 
-### Chat-bridge (REST + WebSocket on :9100)
-- **Runtime:** host-native systemd service (`chat-bridge.service`), source at `services/chat-bridge/app.py`
+### late-auth-service (REST on :9300)
+- **Repo:** `kodingvibes/late-auth-service` (separate, private).
+- **Runtime:** host-native systemd service, source at `/root/late-auth-service/`. ~37 MB RAM. Python 3.12 venv at `/opt/late-auth/venv`.
+- **Service file:** `/etc/systemd/system/late-auth.service` (already installed, `systemctl enable --now late-auth`).
+- **Run command:** `systemctl restart late-auth` (no build, pure Python).
+- SQLite lives at `/data/late-auth/auth.db`. The 10 users + 79 sessions were migrated from the chat-bridge DB during the v1.39.0 split.
+- **Endpoints** (all under `prefix=/api/auth`):
+  - `GET  /healthz` — health
+  - `POST /exchange` — exchange a Supabase JWT for a `session_id`
+  - `GET  /me` — current session details (requires Bearer + `X-Session-Id`)
+  - `GET  /validate` — service-to-service: returns the user dict for a given `X-Session-Id` (the only endpoint the chat calls)
+  - `POST /logout` — invalidate a session
+  - `POST /heartbeat` — refresh `last_seen`
+  - `GET  /users/{id}` — public user by id
+  - `GET  /users/search?q=...` — partial match on display_name / email
+  - `GET  /users/by-email?email=...` — public user by email
+  - `POST /users/batch` — bulk lookup by id list (used by the chat's voice rooms)
+- **CRITICAL:** `SSO_BRIDGE_SECRET` MUST match the one in Vercel (kodingvibes project, prod env) AND `LATE_AUTH_SECRET` MUST match the one in late-chat-service. If either drifts, every exchange returns 401 and the front enters a redirect loop. To rotate: pick a new value, `vercel env rm SSO_BRIDGE_SECRET production --yes && vercel env add SSO_BRIDGE_SECRET production` in the kodingvibes repo, `vercel deploy --prod`, then update `/root/.env.backup` (or `/root/.env.auth`) and re-run `scripts/deploy.sh`.
+
+### late-chat-service (REST + WebSocket on :9100)
+- **Repo:** `kodingvibes/late-chat-service` (separate, was `services/chat-bridge/` here).
+- **Runtime:** host-native Docker container (`late-chat-service:dev`), source at `/root/late-chat-service/`.
 - **Run command (preserves DB and restart policy):**
   ```bash
-  bash /root/late.kodingvibes.com/scripts/restart-chat-bridge.sh
+  bash /root/late-chat-service/scripts/deploy.sh
   ```
-  The env vars (SSO_BRIDGE_SECRET, SQLITE_PATH, ATTACHMENT_DIR) are persisted in `/root/.env.backup` — never generate a new random secret or the JWT validation breaks.
-- **Restart script:** `scripts/restart-chat-bridge.sh` — updates the venv, restarts the systemd service, and waits until `/api/chat/unfurl` is healthy.
-- **Service file:** `services/chat-bridge/chat-bridge.service` (install to `/etc/systemd/system/` and `systemctl enable --now chat-bridge`).
-- SQLite lives at `/data/chat-bridge/chat.db` (`/data/chat-bridge/` is created by the restart script).
+  The env vars (`SSO_BRIDGE_SECRET`, `LATE_AUTH_SECRET`, `SQLITE_PATH`, `ATTACHMENT_DIR`) are persisted in `/root/.env.backup` and `/root/.env.auth` — never generate a new random secret or the JWT validation breaks.
+- **Restart script:** `/root/late-chat-service/scripts/deploy.sh` — rebuilds the image, replaces the container, and waits until `/healthz` is healthy.
+- SQLite lives at `/data/late-chat-service/chat.db` (was `/data/chat-bridge/chat.db` before v1.39.0).
 - **JWT shape it accepts:** HS256, `aud: "late.kodingvibes.com"`, `iss: "kodingvibes.com"`, signed with `SSO_BRIDGE_SECRET`.
-- **CRITICAL:** `SSO_BRIDGE_SECRET` MUST match the one in Vercel (kodingvibes project, prod env). If they drift, every exchange returns 401 and the front enters a redirect loop. To rotate: pick a new value, `vercel env rm SSO_BRIDGE_SECRET production --yes && vercel env add SSO_BRIDGE_SECRET production` in the kodingvibes repo, `vercel deploy --prod`, then update `/root/.env.backup` and restart the service.
-- **Role system** (see `core/db.py` migrations + `core/auth.py::is_global_admin`):
-  - `users.global_role` (column added on startup migration): `'super_admin'` | `'admin'` | `'user'` (default). Affects the whole platform, not a single channel.
-  - `channel_members.role` (per-channel): `'admin'` | `'mod'` | `NULL`. Unchanged. Moderator (mod) still only works inside the channel where it's set.
+- **CRITICAL:** `SSO_BRIDGE_SECRET` MUST match the one in Vercel (kodingvibes project, prod env) AND `LATE_AUTH_SECRET` MUST match the one in late-auth-service. If either drifts, every exchange returns 401 and the front enters a redirect loop. To rotate either: pick a new value, `vercel env rm SSO_BRIDGE_SECRET production --yes && vercel env add SSO_BRIDGE_SECRET production` in the kodingvibes repo, `vercel deploy --prod`, then update `/root/.env.backup` (or `/root/.env.auth`) and re-run `scripts/deploy.sh`.
+- **Auth path:** every incoming request hits `late-auth-service /api/auth/validate` with `Authorization: Bearer $LATE_AUTH_SECRET` and `X-Session-Id: $token`. The session response carries `id`, `display_name`, `email`, and `global_role`. Display names and emails for *other* users (message authors, mention targets) are resolved through `services/user_cache.py` (TTL 300 s) backed by `/api/auth/users/{id}` and `/api/auth/users/batch`.
+- **Role system** (driven by `global_role` on the validated session, see `core/auth.py::is_global_admin`):
+  - `users.global_role` in late-auth: `'super_admin'` | `'admin'` | `'user'` (default). Affects the whole platform, not a single channel.
+  - `channel_members.role` in this DB (per-channel): `'admin'` | `'mod'` | `NULL`. Unchanged. Moderator (mod) still only works inside the channel where it's set.
   - `list_channels` returns `my_role='admin'` for any user whose `global_role IN ('super_admin','admin')`, on every channel — joined or not. Per-channel admin role is overridden by global admin in the response.
   - Admin actions (delete channel, change role, mute, move channel category) check `is_global_admin(session)` first; if false, fall back to the per-channel admin/mod check. PATCH `/api/chat/channels/{id}` and DELETE `/api/chat/channels/{id}` are gated.
-  - Bootstrap: on first startup after the migration, `users.id = 1` is set to `super_admin` (idempotent). That's the original chat creator.
+  - The local `users` table is **gone** (was removed in v1.39.0). Identity lives in late-auth. This DB only stores channels, messages, reactions, attachments, voice_notes, notes.
 
 ### Nginx Config
 - `/etc/nginx/sites-enabled/late.kodingvibes.com`
 - Routes stream mount names (regex) → `127.0.0.1:8000` (Icecast)
 - Routes `/status` → `127.0.0.1:8000` (Icecast status)
-- Routes `/api/chat/` → `127.0.0.1:9100` (chat-bridge)
+- Routes `/api/chat/` → `127.0.0.1:9100` (late-chat-service)
+- Routes `/api/auth/` → `127.0.0.1:9300` (late-auth-service)
 - Serves static files from `/var/www/html/` (shell, micros, vendor, icons, fonts)
 - Cache-Control: `immutable, 1 year` for `/assets/*`, `/fonts/*`, `/micro/*`, `/vendor/*`
 - Cache-Control: `1 day` for root static assets (favicon, og-image, icons)
@@ -137,12 +168,12 @@ late.kodingvibes.com/                (this repo, the shell)
 2. `bash scripts/extract-vendor.sh` if React/ReactDOM versions bumped (uncommon).
 3. `bash scripts/build-micro-{radio,chat}.sh` for each micro that changed.
 4. `cd late-web-ui && npm run build`
-5. If chat-bridge changed: `bash /root/restart-chat-bridge.sh`
+5. If late-chat-service changed: `bash /root/late-chat-service/scripts/deploy.sh` (or just push to its `main` and the webhook handles it).
 6. If Icecast config changed: `docker restart icecast`
 7. If relay scripts changed: `bash scripts/start_soma_relays.sh` and/or restart metadata relay
 
 ## Semantic Release
-- All managed repos (`late.kodingvibes.com`, `late-micro-radio`, `late-micro-chat`) use [Semantic Release](https://semantic-release.gitbook.io/semantic-release) via `.github/workflows/release.yml`.
+- All managed repos (`late.kodingvibes.com`, `late-micro-radio`, `late-micro-chat`, `late-auth-service`, `late-chat-service`) use [Semantic Release](https://semantic-release.gitbook.io/semantic-release) via `.github/workflows/release.yml`.
 - Commits on `main` must follow [Conventional Commits](https://www.conventionalcommits.org/):
   - `feat:` → minor bump
   - `fix:`, `perf:`, `revert:` → patch bump
@@ -150,16 +181,17 @@ late.kodingvibes.com/                (this repo, the shell)
   - `chore:`, `docs:`, `style:`, `refactor:`, `test:` → no version bump (unless they include `BREAKING CHANGE`)
 - Releases are created automatically: version bump, `CHANGELOG.md`, GitHub release, and (for the shell) sync of `late-web-ui/package.json` + `late-web-ui/src/lib/version.ts`.
 
-## Commands (run from repo root)
 ## Auto-deploy (late-deployd)
 
 Pushing to `main` on the managed repos triggers an automatic deploy on this host:
 
 | Repo | Local path | Deploy action |
 |------|------------|---------------|
-| `kodingvibes/late.kodingvibes.com` | `/root/late.kodingvibes.com` | `git pull` → `extract-vendor.sh` → build shell → copy to `/var/www/html/` → **restart chat-bridge service** and wait for `/api/chat/unfurl` health → `nginx -s reload`. |
+| `kodingvibes/late.kodingvibes.com` | `/root/late.kodingvibes.com` | `git pull` → `extract-vendor.sh` → build shell → copy to `/var/www/html/` → `nginx -s reload`. |
 | `kodingvibes/late-micro-radio` | `/root/late-micro-radio` | `git pull` → `scripts/build-micro-radio.sh` → `extract-vendor.sh` → **rebuild shell** → copy to `/var/www/html/` → `nginx -s reload`. |
 | `kodingvibes/late-micro-chat` | `/root/late-micro-chat` | `git pull` → `scripts/build-micro-chat.sh` → `extract-vendor.sh` → **rebuild shell** → copy to `/var/www/html/` → `nginx -s reload`. |
+| `kodingvibes/late-auth-service` | `/root/late-auth-service` | `git pull` → `systemctl restart late-auth` (no build, pure Python). |
+| `kodingvibes/late-chat-service` | `/root/late-chat-service` | `git pull` → `scripts/deploy.sh` (Docker build + container replace + `/healthz` probe). |
 
 Webhook endpoint: `https://late.kodingvibes.com/deploy-webhook`  
 Health/logs: `https://late.kodingvibes.com/deploy-health`, `https://late.kodingvibes.com/deploy-logs`  
@@ -174,9 +206,10 @@ Deploys are asynchronous (returns HTTP 202) so GitHub does not retry while a bui
 - **Manual deploy chat (fallback):** `bash scripts/build-micro-chat.sh`
 - **Manual deploy shell (fallback):** `cd late-web-ui && npm run build && rm -rf /var/www/html/assets /var/www/html/index.html && cp -r dist/. /var/www/html/ && nginx -s reload`
   - Only use this if the server-side auto-deploy is broken. Normally `npm run build` is enough because the deploy webhook copies the bundle.
+- **Manual deploy late-chat-service (fallback):** `bash /root/late-chat-service/scripts/deploy.sh`
 - **Rebuild vendor:** `bash scripts/extract-vendor.sh`
 - **Typecheck shell:** `cd late-web-ui && npm run lint`
-- **Restart chat-bridge:** `bash scripts/restart-chat-bridge.sh`
+- **Restart chat:** `bash /root/late-chat-service/scripts/deploy.sh`
 - **Restart deployd:** `systemctl restart late-deployd`
 - **Restart icecast:** `docker restart icecast`
 - **Restart ffmpeg relays:** `bash scripts/start_soma_relays.sh`
@@ -196,7 +229,7 @@ Deploys are asynchronous (returns HTTP 202) so GitHub does not retry while a bui
 - **sso-bridge:latest** Docker image: removed (212MB).
 - **late-ssh assets** (`late-ssh/assets/nonograms/.number-loom-validation/`): dead.
 
-## Migration Plan (DONE — v1.34.0)
+## Migration Plan (DONE)
 
 - **Fase 0 (DONE, v1.30.0):** created the two repos with placeholder UIs, vendor + import map, end-to-end tested in playwright. The shell renders empty `<div id="micro-*-root">` slots on `/icecast` and `/irc`; the micros auto-mount via a `MutationObserver` watching for the slot.
 - **Fase 1 (DONE, v1.31.0):** refactored `MiniPlayer.tsx` to consume `window.RadioEngine` via `useSyncExternalStore`. Dropped the legacy `AudioProvider` and `TrackMetadataSync` from the shell. Added `lib/radio-engine.ts` with `FALLBACK_STREAMS` so the shell renders before the micro loads.
@@ -204,3 +237,4 @@ Deploys are asynchronous (returns HTTP 202) so GitHub does not retry while a bui
 - **Fase 3 (DONE, v1.33.0):** moved the chat (`pages/Irc/`, `components/irc/*`, voice chain, `lib/chat`, `lib/irc`, `lib/{chat-notifs,emoji,image-prep,notification-sound}.ts`) into `late-micro-chat` (v0.1.0). The chat consumes `window.RadioEngine.getAnalyser()` for voice-room visualizers. Replaced the legacy `useAudio()` hook with a direct `window.RadioEngine` shim inside the IrcPage.
 - **Fase 4 (DONE, v1.34.0):** cleaned the shell — `package.json` loses `marked`, `dompurify`, `msw`, `zustand`. Dropped `lib/chat`, `lib/irc`, `voice/`, `components/irc/`, `audio/{AudioProvider,TrackMetadataSync,persistence,presets,voiceChain,audio-engine}.ts`, `hooks/useAudioLevel.ts`. Removed the dev proxy for `/status-json.xsl` (now consumed by the micro). Removed `index.html` import map (micros externalize React via Vite, share the `/vendor/vendor.js`).
 - **Fase 5 (DONE, v1.35.0):** `latest.json` + stable `/micro/{radio,chat}/latest/` URLs enable dynamic micro upgrades without shell redeploy. The front's `UpdateNotice` polls the three version markers and clears content caches before reloading.
+- **Fase 6 (DONE, v1.39.0):** extracted `late-auth-service` (port 9300) and `late-chat-service` (port 9100) into their own repos. The shell is now just the React bundle + the deployd webhook receiver. `services/chat-bridge/` is gone; the chat has its own webhook on push to `main`. The local `users` + `sessions` tables in the chat DB are gone — late-auth is the source of truth and the chat uses an in-process TTL cache (`services/user_cache.py`) to resolve display_name/email for messages.
