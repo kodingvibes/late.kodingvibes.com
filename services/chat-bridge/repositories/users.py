@@ -21,16 +21,20 @@ def upsert_user(sub: str, email: str, name: str) -> dict:
                 (sub, email, name, display, now, now),
             )
             user_id = conn.execute("SELECT id FROM users WHERE supabase_sub = ?", (sub,)).fetchone()["id"]
-            for ch_name in ["#lobby", "#random", "#dev", "#infra", "🔊 General", "🔊 Music"]:
-                ch = conn.execute("SELECT id FROM channels WHERE name = ?", (ch_name,)).fetchone()
-                if ch:
-                    conn.execute(
-                        "INSERT OR IGNORE INTO channel_members (channel_id, user_id, joined_at) VALUES (?, ?, ?)",
-                        (ch["id"], user_id, now),
-                    )
         else:
             user_id = user["id"]
             conn.execute("UPDATE users SET last_seen = ? WHERE id = ?", (now, user_id))
+        # ponytail: every user belongs to every channel. Joining only the
+        # seeded ones left new channels invisible until the startup
+        # cross-join ran, which the user could see if the service had
+        # been up a while. The cross-join runs here too so a brand-new
+        # user shows up in every existing channel the moment their
+        # session is created, no matter when the service last restarted.
+        conn.execute(
+            "INSERT OR IGNORE INTO channel_members (channel_id, user_id, joined_at) "
+            "SELECT c.id, ?, ? FROM channels c",
+            (user_id, now),
+        )
         user = dict(conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone())
     return user
 

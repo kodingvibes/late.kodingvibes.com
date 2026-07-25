@@ -43,8 +43,9 @@ async def list_messages_route(channel_id: int, before: Optional[int] = None, lim
     ch = get_channel(channel_id)
     if not ch:
         raise HTTPException(404, "Channel not found")
-    if not is_member(channel_id, session["user_id"]):
-        raise HTTPException(403, "Not a member")
+    # ponytail: every user belongs to every channel, so there is no
+    # "not a member" failure mode here. The mute check stays in the
+    # write path below.
     return list_messages(channel_id, before, limit)
 
 @router.post("/api/chat/channels/{channel_id}/messages")
@@ -63,13 +64,14 @@ async def send_message_route(channel_id: int, req: SendMessageRequest, session: 
     if not ch:
         raise HTTPException(404, "Channel not found")
     with db() as conn:
+        # ponytail: the row is always present now, but we still read it
+        # for the mute flag (and the role, kept for future per-channel
+        # moderation logic that gates non-403 paths).
         member = conn.execute(
             "SELECT role, muted FROM channel_members WHERE channel_id = ? AND user_id = ?",
             (channel_id, session["user_id"]),
         ).fetchone()
-        if not member:
-            raise HTTPException(403, "Not a member")
-        if member["muted"] and member["role"] not in ("admin", "mod"):
+        if member and member["muted"] and member["role"] not in ("admin", "mod"):
             raise HTTPException(403, "Estás silenciado en este canal")
     msg = send_message(channel_id, session["user_id"], content, is_action, req.reply_to)
     payload = {"type": "message", "data": msg}

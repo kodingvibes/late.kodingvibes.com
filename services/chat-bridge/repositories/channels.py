@@ -6,47 +6,33 @@ from services.broadcaster import ws_manager
 def list_channels(user_id: int) -> list[dict]:
     with db() as conn:
         conn.execute("UPDATE users SET last_seen = ? WHERE id = ?", (int(time.time()), user_id))
-        # Ponytail: global super_admin / admin users get admin rights on
-        # every channel (joined or not) without a channel_members row.
-        # is_global_admin is 1 when the user holds a platform-level role.
+        # Ponytail: every user belongs to every channel. The previous
+        # version filtered by membership OR is_public, which left users
+        # unable to see channels they hadn't been invited to and, when
+        # the frontend auto-selected one, getting 403 on /messages. Now
+        # we return every channel as joined=True.
+        # Global super_admin / admin still get admin on every channel.
+        # Column list spelled out: SELECT c.* would silently widen
+        # whenever a migration adds a column, which has burned this
+        # codebase before (last_message_*, channel_type, position...).
+        # Explicit columns force this query to keep up with the schema
+        # on purpose, not by accident.
         global_admin = conn.execute(
             "SELECT 1 AS is_global_admin FROM users WHERE id = ? AND global_role IN ('super_admin', 'admin')",
             (user_id,),
         ).fetchone()
         rows = conn.execute("""
-            SELECT c.*,
-                EXISTS(SELECT 1 FROM channel_members WHERE channel_id = c.id AND user_id = ?) AS joined,
+            SELECT c.id, c.name, c.description, c.is_public, c.created_by, c.created_at,
+                   c.channel_type, c.category_id, c.position,
                 (SELECT COUNT(*) FROM channel_members WHERE channel_id = c.id) AS member_count,
                 (SELECT id FROM messages WHERE channel_id = c.id ORDER BY id DESC LIMIT 1) AS last_message_id,
                 (SELECT content FROM messages WHERE channel_id = c.id ORDER BY id DESC LIMIT 1) AS last_message_content,
                 (SELECT created_at FROM messages WHERE channel_id = c.id ORDER BY id DESC LIMIT 1) AS last_message_at
             FROM channels c
-            WHERE c.id IN (SELECT channel_id FROM channel_members WHERE user_id = ?)
-               OR c.is_public = 1
             ORDER BY c.name
-        """, (user_id, user_id)).fetchall()
+        """).fetchall()
         channels = []
         for r in rows:
-            joined = bool(r["joined"])
-            ch_dict = dict(r)
-            if not joined:
-                channels.append({
-                    "id": ch_dict["id"],
-                    "name": ch_dict["name"],
-                    "description": ch_dict["description"],
-                    "is_public": bool(ch_dict["is_public"]),
-                    "channel_type": ch_dict.get("channel_type", "text"),
-                    "category_id": ch_dict["category_id"],
-                    "position": ch_dict["position"],
-                    "member_count": ch_dict["member_count"],
-                    "active_count": 0,
-                    "voice_participants": 0,
-                    "unread": 0,
-                    "my_role": "admin" if global_admin else None,
-                    "last_message": None,
-                    "joined": False,
-                })
-                continue
             member_uids = [
                 m["user_id"] for m in conn.execute(
                     "SELECT user_id FROM channel_members WHERE channel_id = ?", (r["id"],)
@@ -108,10 +94,17 @@ def create_channel(name: str, description: str | None, is_public: bool, created_
             (name, description, 1 if is_public else 0, created_by, now, channel_type),
         )
         channel_id = cur.lastrowid
-        conn.execute(
-            "INSERT INTO channel_members (channel_id, user_id, joined_at, role) VALUES (?, ?, ?, ?)",
-            (channel_id, created_by, now, "admin"),
-        )
+        # ponytail: every user belongs to every channel. The creator
+        # gets admin on this one (still the only way to mint admin
+        # roles); everyone else gets a plain row so they can read
+        # and write immediately without a join step.
+        all_users = conn.execute("SELECT id FROM users").fetchall()
+        for u in all_users:
+            role = "admin" if u["id"] == created_by else None
+            conn.execute(
+                "INSERT OR IGNORE INTO channel_members (channel_id, user_id, joined_at, role) VALUES (?, ?, ?, ?)",
+                (channel_id, u["id"], now, role),
+            )
     return {"id": channel_id, "name": name}
 
 
@@ -130,6 +123,10 @@ def update_channel(channel_id: int, patch: dict):
             conn.execute(f"UPDATE channels SET {', '.join(updates)} WHERE id = ?", params)
 
 
+# ponytail: join/leave used to toggle membership. Now that every
+# user is in every channel they're no-ops kept for backwards
+# compatibility with the frontend (the UI hides the buttons, but
+# an old bundle or a stray call still gets a 200 instead of a 404).
 def join_channel(channel_id: int, user_id: int):
     with db() as conn:
         conn.execute(
@@ -139,14 +136,14 @@ def join_channel(channel_id: int, user_id: int):
 
 
 def leave_channel(channel_id: int, user_id: int):
-    with db() as conn:
-        conn.execute("DELETE FROM channel_members WHERE channel_id = ? AND user_id = ?", (channel_id, user_id))
+    # Intentionally does nothing: leaving a channel is not a thing
+    # anymore. Callers that used to rely on the row disappearing
+    # (mutes, unread counts) still work because the row stays.
+    return None
 
 
+# ponytail: every user belongs to every channel, so the membership
+# check is always true. The function is kept as a back-compat shim
+# for the few routers that still import it.
 def is_member(channel_id: int, user_id: int) -> bool:
-    with db() as conn:
-        row = conn.execute(
-            "SELECT 1 FROM channel_members WHERE channel_id = ? AND user_id = ?",
-            (channel_id, user_id),
-        ).fetchone()
-    return row is not None
+    return True

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from core.auth import get_session_user, get_channel_role, is_global_admin
 from schemas.chat import CreateChannelRequest, UpdateChannelRequest, InviteRequest
-from repositories.channels import list_channels, get_channel, create_channel, update_channel, join_channel, leave_channel, is_member
+from repositories.channels import list_channels, get_channel, create_channel, update_channel
 from repositories.receipts import mark_read
 from repositories.users import search_users
 from services.notifications import send_to_kv
@@ -65,15 +65,19 @@ async def delete_channel_route(channel_id: int, session: dict = Depends(get_sess
 
 @router.post("/api/chat/channels/{channel_id}/join")
 async def join_channel_route(channel_id: int, session: dict = Depends(get_session_user)):
+    # ponytail: every user is in every channel, so joining is a no-op.
+    # Kept as a 200 for back-compat with the frontend and any old
+    # bundles still calling it.
     ch = get_channel(channel_id)
     if not ch:
         raise HTTPException(404, "Channel not found")
-    join_channel(channel_id, session["user_id"])
     return {"ok": True}
 
 @router.post("/api/chat/channels/{channel_id}/leave")
 async def leave_channel_route(channel_id: int, session: dict = Depends(get_session_user)):
-    leave_channel(channel_id, session["user_id"])
+    # ponytail: leaving a channel is not a thing anymore. The row
+    # stays so unread counts and the mute flag keep working. Frontend
+    # has hidden the "Leave" button; this is here for old clients.
     return {"ok": True}
 
 @router.get("/api/chat/users")
@@ -85,23 +89,21 @@ async def search_users_route(q: str, session: dict = Depends(get_session_user)):
 
 @router.post("/api/chat/channels/{channel_id}/invite")
 async def invite_user(channel_id: int, req: InviteRequest, session: dict = Depends(get_session_user)):
+    # ponytail: every user is already in every channel, so inviting
+    # is a no-op. The target user is reported as "joined" (which they
+    # always are), the notify side is kept so the existing webhook
+    # still fires for chat-bridge consumers that listen for it.
     email = req.email.strip().lower()
     if not email or "@" not in email:
         raise HTTPException(400, "Invalid email")
     ch = get_channel(channel_id)
     if not ch:
         raise HTTPException(404, "Channel not found")
-    if not is_member(channel_id, session["user_id"]):
-        raise HTTPException(403, "Not a member")
     from repositories.users import get_user_by_id
     with db() as conn:
         target = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
         if not target:
             raise HTTPException(404, "User not found")
-        conn.execute(
-            "INSERT OR IGNORE INTO channel_members (channel_id, user_id, joined_at) VALUES (?, ?, ?)",
-            (channel_id, target["id"], int(__import__('time').time())),
-        )
     asyncio.create_task(send_to_kv("channel.invited", {
         "channel_id": channel_id, "channel_name": ch["name"],
         "user_id": target["id"], "display_name": target["display_name"],

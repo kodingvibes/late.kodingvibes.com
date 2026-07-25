@@ -13,9 +13,10 @@ async def buzz(req: BuzzRequest, session: dict = Depends(get_session_user)):
     if req.target_user_id == session["user_id"]:
         raise HTTPException(400, "Cannot buzz yourself")
     with db() as conn:
-        caller = conn.execute("SELECT 1 FROM channel_members WHERE channel_id = ? AND user_id = ?", (req.channel_id, session["user_id"])).fetchone()
-        if not caller:
-            raise HTTPException(403, "Not a member of this channel")
+        # ponytail: every user is in every channel, so the caller row
+        # is always present. Kept as a presence sanity-check, but it
+        # no longer gates the buzz — the only real check left is the
+        # target's online state and the rate limiter.
         target = conn.execute("SELECT 1 FROM channel_members WHERE channel_id = ? AND user_id = ?", (req.channel_id, req.target_user_id)).fetchone()
         if not target:
             raise HTTPException(404, "Target user not in channel")

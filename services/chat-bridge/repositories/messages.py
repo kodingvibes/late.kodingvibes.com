@@ -344,13 +344,14 @@ def forward_message(orig_id: int, target_channel_id: int, user_id: int) -> dict:
         ).fetchone()
         if not target_ch:
             raise ValueError("Target channel not found")
+        # ponytail: every user is in every channel, so the target row
+        # is always present. The check now only enforces mute / role,
+        # not membership.
         target_member = conn.execute(
             "SELECT muted, role FROM channel_members WHERE channel_id = ? AND user_id = ?",
             (target_channel_id, user_id),
         ).fetchone()
-        if not target_member:
-            raise ValueError("Not a member of the target channel")
-        if target_member["muted"] and target_member["role"] not in ("admin", "mod"):
+        if target_member and target_member["muted"] and target_member["role"] not in ("admin", "mod"):
             raise ValueError("Estás silenciado en el canal destino")
         content = orig["content"]
         if len(content) > 2_000_000:

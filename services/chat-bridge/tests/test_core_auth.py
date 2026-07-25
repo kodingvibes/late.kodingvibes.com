@@ -67,12 +67,16 @@ def test_display_name_from_email():
 
 
 def test_is_member(consume_admin_slot, make_session):
+    # ponytail: is_member is now a back-compat shim that always
+    # returns True. The cross-join migration in core/db.py keeps
+    # every (user, channel) pair populated so the function never
+    # needs to look anything up.
     _, user = make_session()
     from repositories.channels import is_member as ch_is_member
     with db() as conn:
         lobby = conn.execute("SELECT id FROM channels WHERE name = '#lobby'").fetchone()
     assert ch_is_member(lobby["id"], user["id"]) is True
-    assert ch_is_member(99999, user["id"]) is False
+    assert ch_is_member(99999, user["id"]) is True
 
 
 def test_require_admin_or_mod(consume_admin_slot, make_session):

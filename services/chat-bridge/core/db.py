@@ -149,6 +149,16 @@ def _run_migrations(conn):
     conn.execute("UPDATE channel_members SET role = 'admin' WHERE user_id = 1 AND role IS NULL")
     _seed_categories(conn)
     _seed_channels(conn)
+    # ponytail: every user belongs to every channel. Run the cross-join
+    # once at startup so existing DBs catch up. INSERT OR IGNORE is
+    # idempotent — re-runs are no-ops once everyone is in everything.
+    # New users / new channels get the same treatment in upsert_user and
+    # create_channel so the invariant holds on every write path.
+    conn.execute(
+        "INSERT OR IGNORE INTO channel_members (channel_id, user_id, joined_at) "
+        "SELECT c.id, u.id, ? FROM channels c, users u",
+        (int(time.time()),),
+    )
 
 def _run_idempotent_alter(conn, table, column, col_type):
     try:

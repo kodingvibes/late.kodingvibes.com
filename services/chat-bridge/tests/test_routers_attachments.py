@@ -13,9 +13,13 @@ class TestUploadAttachment:
         assert r.status_code in (400, 422)
 
     async def test_upload_not_member(self, client, auth_headers):
+        # ponytail: every user is in every channel, so "not a member"
+        # on a non-existent channel id is a plain 404 (channel not
+        # found), not a 403. Reusing the same auth_headers against an
+        # id that doesn't exist now returns 404.
         headers, user = auth_headers
         r = await client.post("/api/chat/channels/99999/attachments", files={"file": ("test.txt", b"hello")}, headers=headers)
-        assert r.status_code == 403
+        assert r.status_code == 404
 
     async def test_upload_too_large(self, client, auth_headers, monkeypatch):
         import routers.attachments as att_router

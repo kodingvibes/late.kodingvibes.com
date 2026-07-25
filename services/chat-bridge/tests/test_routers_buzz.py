@@ -22,10 +22,15 @@ class TestBuzz:
         assert r.status_code == 400
 
     async def test_buzz_not_member(self, client, auth_headers, consume_admin_slot, make_session):
+        # ponytail: every user is in every channel, so a non-existent
+        # channel id now goes through the online check and returns 404
+        # (target not online / channel not found) rather than 403.
+        # The behavior is the same from the user's POV — the buzz
+        # can't land — but the status code reflects the new model.
         headers, user = auth_headers
         _, target = make_session("sub-buzz-nomember", "nomember@example.com", "NoMember")
         r = await client.post("/api/chat/buzz", json={"channel_id": 99999, "target_user_id": target["id"]}, headers=headers)
-        assert r.status_code == 403
+        assert r.status_code == 404
 
     async def test_buzz_target_not_in_channel(self, client, auth_headers, consume_admin_slot, make_session):
         headers, user = auth_headers

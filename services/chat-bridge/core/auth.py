@@ -27,11 +27,11 @@ def display_name_from_email(email: str) -> str:
     return email.split("@")[0][:32].lower()
 
 def is_member(conn, channel_id: int, user_id: int) -> bool:
-    row = conn.execute(
-        "SELECT 1 FROM channel_members WHERE channel_id = ? AND user_id = ?",
-        (channel_id, user_id),
-    ).fetchone()
-    return row is not None
+    # ponytail: every user belongs to every channel. Membership checks
+    # collapsed to True so the chat can drop the "not a member" path
+    # entirely. Per-channel moderation still lives on the same row
+    # (role, muted), so the rest of the auth helpers keep working.
+    return True
 
 def is_global_admin(session: dict) -> bool:
     return session.get("global_role") in ("super_admin", "admin")

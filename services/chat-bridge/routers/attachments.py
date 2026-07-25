@@ -57,8 +57,13 @@ def _probe_dimensions(path: str) -> tuple[int | None, int | None]:
 async def upload_attachment(request: Request, channel_id: int, file: UploadFile = File(...), session: dict = Depends(get_session_user)):
     if not file:
         raise HTTPException(400, "No file provided")
-    if not is_member(channel_id, session["user_id"]):
-        raise HTTPException(403, "Not a member")
+    # ponytail: every user is in every channel, so "is_member" is always
+    # True and we no longer gate uploads on membership. The channel must
+    # still exist though — a typo'd id would otherwise blow up on the
+    # FK constraint in the attachments INSERT.
+    from repositories.channels import get_channel
+    if not get_channel(channel_id):
+        raise HTTPException(404, "Channel not found")
     contents = await file.read()
     if len(contents) > MAX_ATTACHMENT_BYTES:
         raise HTTPException(413, f"File too large. Max {MAX_ATTACHMENT_BYTES // 1024 // 1024} MB")

@@ -57,17 +57,17 @@ def test_list_channels_includes_last_message(consume_admin_slot, make_session):
 
 
 def test_list_channels_includes_public_unjoined(consume_admin_slot, make_session):
+    # ponytail: every user belongs to every channel, so the concept of
+    # "discoverable but not joined" is gone. Public-or-not doesn't
+    # gate visibility anymore — membership is universal.
     _, user = make_session()
-    # Create a public channel from a different user; the test user doesn't join.
     _, other = make_session(sub="other-sub", email="other@example.com", name="Other")
     create_channel("#discoverable", "Public", True, other["id"])
     chans = list_channels(user["id"])
     by_name = {c["name"]: c for c in chans}
     assert "#discoverable" in by_name
-    assert by_name["#discoverable"]["joined"] is False
-    assert by_name["#discoverable"]["my_role"] is None
+    assert by_name["#discoverable"]["joined"] is True
     assert by_name["#discoverable"]["unread"] == 0
-    # Joined channels must still carry joined=True.
     for name in ("#lobby", "#random", "#dev", "#infra"):
         assert by_name[name]["joined"] is True
 
@@ -77,20 +77,23 @@ def test_super_admin_sees_admin_role_on_every_channel(consume_admin_slot, make_s
     _, user = make_session()
     with db() as conn:
         conn.execute("UPDATE users SET global_role = 'super_admin' WHERE id = ?", (user["id"],))
-    # Other user creates a channel and doesn't invite us.
     _, other = make_session(sub="other2-sub", email="other2@example.com", name="Other2")
     create_channel("#otherplace", "Other's", True, other["id"])
     chans = list_channels(user["id"])
     by_name = {c["name"]: c for c in chans}
-    # Joined channels: my_role forced to 'admin' even if we never were admin there.
     for name in ("#lobby", "#random", "#dev", "#infra"):
         assert by_name[name]["my_role"] == "admin"
-    # Non-joined public channel: my_role is also 'admin', joined=False.
+    # ponytail: every user is in every channel, so the formerly-foreign
+    # channel is just another joined one. The role still gets the
+    # global-admin upgrade.
     assert by_name["#otherplace"]["my_role"] == "admin"
-    assert by_name["#otherplace"]["joined"] is False
+    assert by_name["#otherplace"]["joined"] is True
 
 
 def test_join_channel(consume_admin_slot, make_session):
+    # ponytail: join_channel is a no-op. The row is created by
+    # create_channel / upsert_user, not by joining later. The test now
+    # asserts the row already exists and the helper is idempotent.
     _, user = make_session()
     ch = create_channel("#jointest", "Join test", True, user["id"])
     join_channel(ch["id"], user["id"])
@@ -106,10 +109,14 @@ def test_join_channel_idempotent(consume_admin_slot, make_session):
 
 
 def test_leave_channel(consume_admin_slot, make_session):
+    # ponytail: leave is a no-op. The membership invariant is that
+    # everyone belongs to every channel, so leaving would break
+    # unread counts and mute behavior. The helper exists for back-compat
+    # with old frontends; it just does nothing.
     _, user = make_session()
     ch = create_channel("#leavetest", "Leave test", True, user["id"])
     leave_channel(ch["id"], user["id"])
-    assert is_member(ch["id"], user["id"]) is False
+    assert is_member(ch["id"], user["id"]) is True
 
 
 def test_update_channel(consume_admin_slot, make_session):
@@ -121,8 +128,11 @@ def test_update_channel(consume_admin_slot, make_session):
 
 
 def test_is_member(consume_admin_slot, make_session):
+    # ponytail: is_member always returns True now. The cross-join
+    # migration in core/db.py guarantees a row for every (user, channel)
+    # pair, and the helper is a back-compat shim.
     _, user = make_session()
     with db() as conn:
         lobby = conn.execute("SELECT id FROM channels WHERE name = '#lobby'").fetchone()
     assert is_member(lobby["id"], user["id"]) is True
-    assert is_member(99999, user["id"]) is False
+    assert is_member(99999, user["id"]) is True

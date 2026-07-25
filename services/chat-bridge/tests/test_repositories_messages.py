@@ -257,16 +257,20 @@ def test_forward_message_raises_on_hidden(consume_admin_slot, make_session):
         forward_message(orig["id"], random["id"], user["id"])
 
 
-def test_forward_message_raises_on_not_member(consume_admin_slot, make_session):
+def test_forward_message_succeeds_for_any_target(consume_admin_slot, make_session):
+    # ponytail: every user belongs to every channel, so the
+    # "not a member of the target channel" branch in forward_message
+    # is gone. The forward goes through regardless of the target
+    # channel's membership state.
     _, user = make_session()
     _, other = make_session("sub-other", "other@example.com", "Other")
     with db() as conn:
         lobby = conn.execute("SELECT id FROM channels WHERE name = '#lobby'").fetchone()
         random = conn.execute("SELECT id FROM channels WHERE name = '#random'").fetchone()
-        conn.execute("DELETE FROM channel_members WHERE channel_id = ? AND user_id = ?", (random["id"], other["id"]))
     orig = send_message(lobby["id"], user["id"], "Forward me")
-    with pytest.raises(ValueError, match="member"):
-        forward_message(orig["id"], random["id"], other["id"])
+    forwarded = forward_message(orig["id"], random["id"], other["id"])
+    assert forwarded["content"] == "Forward me"
+    assert forwarded["forwarded_from"] is not None
 
 
 def test_list_messages_includes_reactions(consume_admin_slot, make_session):
