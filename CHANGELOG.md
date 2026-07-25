@@ -1,3 +1,10 @@
+# [1.22.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.21.1...v1.22.0) (2026-07-25)
+
+
+### Features
+
+* **theme:** add 4 new accents (pink, orange, teal, purple) and portal ThemeSwitcher ([c5db1cf](https://github.com/kodingvibes/late.kodingvibes.com/commit/c5db1cf77bdec310045c65d6fdf990dacb5ae548))
+
 ## [1.21.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.21.0...v1.21.1) (2026-07-25)
 
 
