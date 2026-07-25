@@ -1,3 +1,10 @@
+## [1.20.3](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.20.2...v1.20.3) (2026-07-25)
+
+
+### Bug Fixes
+
+* **shell:** appshell chat badge always shows the live count ([6566221](https://github.com/kodingvibes/late.kodingvibes.com/commit/6566221202654699f5fe220d046ef3d05290df01))
+
 ## [1.20.2](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.20.1...v1.20.2) (2026-07-25)
 
 
