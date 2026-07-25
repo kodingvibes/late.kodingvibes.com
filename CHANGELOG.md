@@ -1,3 +1,10 @@
+# [1.15.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.14.0...v1.15.0) (2026-07-25)
+
+
+### Features
+
+* **deployd:** record listeners, latency_ms, load_1m in dashboard history ([092a50d](https://github.com/kodingvibes/late.kodingvibes.com/commit/092a50dad63c38f76ffea52b6e2e2c369d48cf7c))
+
 # [1.14.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.13.0...v1.14.0) (2026-07-25)
 
 
