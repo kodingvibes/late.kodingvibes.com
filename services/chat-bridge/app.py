@@ -59,6 +59,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.get("/healthz")
+async def healthz():
+    return {"ok": True}
+
 from routers.channels import router as channels_router
 from routers.messages import router as messages_router
 from routers.reactions import router as reactions_router
