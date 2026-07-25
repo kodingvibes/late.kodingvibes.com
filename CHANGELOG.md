@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.1.0...v1.2.0) (2026-07-25)
+
+
+### Features
+
+* image dimensions on attachments for chat layout pre-allocation ([1d17790](https://github.com/kodingvibes/late.kodingvibes.com/commit/1d177909cc10cac004bf17b6292f89fa520ae7c4))
+
 # [1.1.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.0.1...v1.1.0) (2026-07-24)
 
 
