@@ -27,7 +27,8 @@ import shutil
 import sqlite3
 import subprocess
 import time
-from datetime import datetime, timezone
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Optional
 
@@ -139,7 +140,13 @@ async def check_http(url: str, *, timeout: float = 2.0) -> dict:
 
 
 async def g_system() -> dict:
-    """Host-level metrics: load avg, memory, disk, uptime."""
+    """Host-level metrics: load avg, memory, swap, disk, uptime, cpu.
+
+    CPU% is computed from two /proc/stat samples taken ~200 ms
+    apart. Sampling is fast enough to keep the gather under the
+    GATHER_TIMEOUT_S ceiling and the deployd endpoint responsive
+    while still giving a real number to show in the gauge.
+    """
     def _loadavg() -> Optional[str]:
         try:
             with open("/proc/loadavg") as f:
@@ -164,6 +171,23 @@ async def g_system() -> dict:
         pct = int(used * 100 / total) if total else 0
         return {"total": total, "used": used, "avail": avail, "pct": pct}
 
+    def _swap() -> dict:
+        info: dict[str, int] = {}
+        try:
+            with open("/proc/meminfo") as f:
+                for line in f:
+                    if ":" in line:
+                        k, v = line.split(":", 1)
+                        v = v.strip().split()[0] if v.strip() else "0"
+                        info[k] = int(v) * 1024
+        except OSError:
+            pass
+        total = info.get("SwapTotal", 0)
+        free = info.get("SwapFree", 0)
+        used = max(total - free, 0)
+        pct = int(used * 100 / total) if total else 0
+        return {"total": total, "used": used, "free": free, "pct": pct}
+
     def _disk(path: str) -> dict:
         try:
             st = shutil.disk_usage(path)
@@ -179,12 +203,43 @@ async def g_system() -> dict:
         except (OSError, ValueError, IndexError):
             return None
 
+    def _cpu_sample() -> Optional[tuple[int, int]]:
+        # Returns (busy, total) jiffies from /proc/stat.
+        try:
+            with open("/proc/stat") as f:
+                line = f.readline()  # "cpu  ..."
+            parts = line.split()
+            nums = [int(x) for x in parts[1:]]
+            total = sum(nums)
+            idle = nums[3] if len(nums) > 3 else 0
+            return total - idle, total
+        except (OSError, ValueError, IndexError):
+            return None
+
+    def _cpu_pct() -> Optional[int]:
+        # Two samples, ~200 ms apart. /proc/stat ticks at 100 Hz
+        # by default; on a busy box 200 ms is enough to register
+        # real activity but doesn't stall the request.
+        a = _cpu_sample()
+        if a is None:
+            return None
+        time.sleep(0.2)
+        b = _cpu_sample()
+        if b is None:
+            return None
+        busy = b[0] - a[0]
+        total = b[1] - a[1]
+        if total <= 0:
+            return 0
+        return int(busy * 100 / total)
+
     return {
         "loadavg": _loadavg(),
         "memory": _mem(),
-        "disk_root": _disk("/"),
+        "swap": _swap(),
         "disk_data": _disk("/data"),
         "uptime_s": _uptime(),
+        "cpu_pct": _cpu_pct(),
     }
 
 
@@ -403,7 +458,7 @@ async def gather_all() -> dict:
             return name, {"error": f"{type(e).__name__}: {e}"}
     pairs = await asyncio.gather(*[_one(n, f) for n, f in gatherers])
     out = dict(pairs)
-    out["gathered_at"] = datetime.now(timezone.utc).isoformat()
+    out["gathered_at"] = datetime.now(ZoneInfo("UTC")).isoformat()  # human-friendly copy below
     return out
 
 
@@ -433,7 +488,31 @@ def uptime_str(s: Optional[int]) -> str:
 
 
 def fmt_ts(epoch: float) -> str:
-    return datetime.fromtimestamp(epoch, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    # ponytail: the dashboard is read by a human in Chile.
+    # /status-json.xsl gives us UTC epochs; we render them
+    # in America/Santiago (CLT/CLST, auto-handled by zoneinfo)
+    # so deploy timestamps line up with what the user sees
+    # in their terminal / git log.
+    clt = ZoneInfo("America/Santiago")
+    return datetime.fromtimestamp(epoch, tz=clt).strftime("%Y-%m-%d %H:%M:%S CLT")
+
+
+def fmt_gathered(iso_utc: str) -> str:
+    """Format the gather timestamp for the footer.
+
+    The gather writes an ISO-8601 UTC string. We parse it
+    back to a datetime and render in America/Santiago so
+    the dashboard agrees with the user's wall clock.
+    """
+    if not iso_utc or iso_utc == "—":
+        return "—"
+    try:
+        dt = datetime.fromisoformat(iso_utc)
+    except ValueError:
+        return iso_utc
+    clt = ZoneInfo("America/Santiago")
+    dt_clt = dt.astimezone(clt)
+    return dt_clt.strftime("%Y-%m-%d %H:%M:%S CLT")
 
 
 def status_dot(ok: bool) -> str:
@@ -511,8 +590,9 @@ def render_dashboard_html(payload: dict) -> str:
 
     # System
     mem = system.get("memory", {})
-    disk_root = system.get("disk_root", {})
+    swap = system.get("swap", {})
     disk_data = system.get("disk_data", {})
+    cpu_pct = system.get("cpu_pct")
 
     # Docker
     containers = docker.get("containers", []) if isinstance(docker, dict) else []
@@ -524,20 +604,33 @@ def render_dashboard_html(payload: dict) -> str:
         for c in containers
     )
 
-    # Icecast sources
+    # Icecast sources → per-mount horizontal bars.
+    # max_listeners caps the bar width. If we have 0 listeners
+    # everywhere, fall back to 1 so bars are at least visible.
     icecast_sources = icecast.get("sources", []) if isinstance(icecast, dict) else []
-    icecast_rows = "\n".join(
-        f'<tr><td class="px-3 py-1.5 text-slate-200 font-mono text-xs">/{escape(s["mount"])}</td>'
-        f'<td class="px-3 py-1.5 text-slate-400 text-xs">{s["listeners"]} listeners</td>'
-        f'<td class="px-3 py-1.5 text-slate-300 text-xs">{escape(s["title"] or "—")}</td></tr>'
-        for s in icecast_sources
-    )
+    max_listeners = max((s.get("listeners", 0) for s in icecast_sources), default=0)
+    if max_listeners <= 0:
+        max_listeners = 1
+    if icecast_sources:
+        # Sort by listeners desc so the busiest streams sit on top.
+        ordered = sorted(icecast_sources, key=lambda s: s.get("listeners", 0), reverse=True)
+        icecast_bars = "\n".join(
+            f'<div class="row" style="margin-top: {i and ".5rem" or "0"};">'
+            f'<span class="label">/{escape(s["mount"])}</span>'
+            f'<span class="count">{s.get("listeners", 0)}</span>'
+            f'<span class="bar"><span style="width: {int(s.get("listeners", 0) * 100 / max_listeners)}%;"></span></span>'
+            f'</div>'
+            for i, s in enumerate(ordered)
+        )
+    else:
+        icecast_bars = '<p class="muted" style="margin: 0; font-size: .8125rem;">icecast down or empty</p>'
 
-    # Streams list (always 18)
+    # Streams catalog with live listener lookup by mount.
+    by_mount = {s.get("mount"): s.get("listeners", 0) for s in icecast_sources}
     stream_rows = "\n".join(
         f'<tr><td class="px-3 py-1.5 text-slate-200 font-mono text-xs">/{escape(s["mount"])}</td>'
         f'<td class="px-3 py-1.5 text-slate-400 text-xs">{escape(s["label"])}</td>'
-        f'<td class="px-3 py-1.5 text-slate-500 text-xs">—</td></tr>'
+        f'<td class="px-3 py-1.5 text-slate-300 text-xs tabular-nums">{by_mount.get(s["mount"], 0)}</td></tr>'
         for s in streams
     )
 
@@ -556,15 +649,41 @@ def render_dashboard_html(payload: dict) -> str:
     auth_counts = auth_db.get("counts", {}) if isinstance(auth_db.get("counts"), dict) else {}
     chat_counts = chat_db.get("counts", {}) if isinstance(chat_db.get("counts"), dict) else {}
 
+    # Load sparkline: render the three values as 3 small bars
+    # normalized against the highest of the three. Keeps it
+    # self-explanatory without adding chart dependencies.
+    try:
+        load_str = system.get("loadavg", "") or ""
+        load_parts = [float(x) for x in load_str.split() if x]
+    except (ValueError, AttributeError):
+        load_parts = []
+    if load_parts:
+        load_max = max(load_parts) or 1.0
+        load_spark = "\n".join(
+            f'<span style="height: {max(int(v / load_max * 100), 4)}%;"></span>'
+            for v in load_parts
+        )
+    else:
+        load_spark = '<span class="muted">no data</span>'
+
     template = DASHBOARD_TEMPLATE_PATH.read_text(encoding="utf-8")
-    mem_bar_class = "warn" if mem.get("pct", 0) >= 85 else ""
+    mem_bar_class = "warn" if mem.get("pct", 0) >= 85 else ("ok" if mem.get("pct", 0) < 70 else "mid")
     mem_bar_width = min(int(mem.get("pct", 0)), 100)
-    disk_root_bar_class = "warn" if disk_root.get("pct", 0) >= 85 else ""
-    disk_root_bar_width = min(int(disk_root.get("pct", 0)), 100)
-    disk_data_bar_class = "warn" if disk_data.get("pct", 0) >= 85 else ""
+    swap_bar_class = "warn" if swap.get("pct", 0) >= 50 else ("ok" if swap.get("pct", 0) < 25 else "mid")
+    swap_bar_width = min(int(swap.get("pct", 0)), 100)
+    # ponytail: cpu_pct gates lower than memory. A box with
+    # 60% CPU is already hot; 80% means contention. The
+    # "ok" band stops at 40 so a normal load that bumps
+    # the gauge is visible at a glance.
+    if cpu_pct is None:
+        cpu_bar_class = ""
+        cpu_bar_width = 0
+    else:
+        cpu_bar_class = "warn" if cpu_pct >= 80 else ("ok" if cpu_pct < 40 else "mid")
+        cpu_bar_width = min(int(cpu_pct), 100)
+    disk_data_bar_class = "warn" if disk_data.get("pct", 0) >= 85 else ("ok" if disk_data.get("pct", 0) < 70 else "mid")
     disk_data_bar_width = min(int(disk_data.get("pct", 0)), 100)
     container_s = "" if len(containers) == 1 else "s"
-    listener_s = "" if (icecast.get("total_listeners", 0) if isinstance(icecast, dict) else 0) == 1 else "s"
     overall_dot = "⏳" if is_empty else ("🟢" if overall_ok else "🔴")
     return template.format(
         overall_label=overall_label,
@@ -573,16 +692,20 @@ def render_dashboard_html(payload: dict) -> str:
         overall_dot=overall_dot,
         service_rows=service_rows,
         loadavg=escape(system.get("loadavg", "—")),
+        load_spark=load_spark,
+        cpu_pct="—" if cpu_pct is None else cpu_pct,
+        cpu_bar_class=cpu_bar_class,
+        cpu_bar_width=cpu_bar_width,
         mem_pct=mem.get("pct", 0),
         mem_used=human_bytes(mem.get("used", 0)),
         mem_total=human_bytes(mem.get("total", 0)),
         mem_bar_class=mem_bar_class,
         mem_bar_width=mem_bar_width,
-        disk_root_pct=disk_root.get("pct", 0),
-        disk_root_used=human_bytes(disk_root.get("used", 0)),
-        disk_root_total=human_bytes(disk_root.get("total", 0)),
-        disk_root_bar_class=disk_root_bar_class,
-        disk_root_bar_width=disk_root_bar_width,
+        swap_pct=swap.get("pct", 0),
+        swap_used=human_bytes(swap.get("used", 0)),
+        swap_total=human_bytes(swap.get("total", 0)),
+        swap_bar_class=swap_bar_class,
+        swap_bar_width=swap_bar_width,
         disk_data_pct=disk_data.get("pct", 0),
         disk_data_used=human_bytes(disk_data.get("used", 0)),
         disk_data_total=human_bytes(disk_data.get("total", 0)),
@@ -592,9 +715,7 @@ def render_dashboard_html(payload: dict) -> str:
         container_rows=container_rows or '<tr><td colspan="4" class="px-3 py-2 text-slate-500 text-xs">no containers</td></tr>',
         container_count=len(containers),
         container_s=container_s,
-        icecast_total=icecast.get("total_listeners", 0) if isinstance(icecast, dict) else 0,
-        icecast_rows=icecast_rows or '<tr><td colspan="3" class="px-3 py-2 text-slate-500 text-xs">icecast down or empty</td></tr>',
-        listener_s=listener_s,
+        icecast_bars=icecast_bars,
         stream_rows=stream_rows,
         deploy_rows=deploy_rows or '<tr><td colspan="4" class="px-3 py-2 text-slate-500 text-xs">no deploys</td></tr>',
         auth_db_size=human_bytes(auth_db.get("bytes", 0)),
@@ -605,7 +726,7 @@ def render_dashboard_html(payload: dict) -> str:
         chat_messages=chat_counts.get("messages", "—"),
         chat_attachments=chat_counts.get("attachments", "—"),
         chat_voice=chat_counts.get("voice_notes", "—"),
-        gathered_at=escape(payload.get("gathered_at", "—")),
+        gathered_at=escape(fmt_gathered(payload.get("gathered_at"))),
     )
 
 

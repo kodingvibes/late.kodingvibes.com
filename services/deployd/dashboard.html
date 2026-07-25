@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>late · dashboard</title>
 <style>
-  /* ponytail: single inline stylesheet, no Tailwind, no external
-     assets. The page is one-shot rendered by late-deployd; we
-     don't want a CDN round-trip or a build step here. */
   :root {{
     --bg: #020617;
     --bg-card: #0b1224;
@@ -22,6 +19,7 @@
     --pink: #ec4899;
     --emerald: #10b981;
     --rose: #f43f5e;
+    --amber: #f59e0b;
   }}
   * {{ box-sizing: border-box; }}
   html, body {{
@@ -34,7 +32,7 @@
   }}
   .container {{ max-width: 1280px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }}
   .header {{
-    display: flex; align-items: center; gap: .75rem; margin-bottom: 1.5rem;
+    display: flex; align-items: center; gap: .75rem; margin-bottom: 1.25rem;
   }}
   .logo {{
     display: inline-flex; align-items: center; justify-content: center;
@@ -56,7 +54,8 @@
   .grid {{ display: grid; gap: 1rem; }}
   .grid-2 {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
   .grid-3 {{ grid-template-columns: repeat(3, minmax(0, 1fr)); }}
-  @media (max-width: 900px) {{ .grid-2, .grid-3 {{ grid-template-columns: 1fr; }} }}
+  .grid-4 {{ grid-template-columns: repeat(4, minmax(0, 1fr)); }}
+  @media (max-width: 900px) {{ .grid-2, .grid-3, .grid-4 {{ grid-template-columns: 1fr; }} }}
   .card {{
     background: var(--bg-card); border: 1px solid var(--border);
     border-radius: .75rem; padding: 1rem 1.25rem;
@@ -66,29 +65,45 @@
     color: var(--muted); text-transform: uppercase; letter-spacing: .08em;
   }}
   .stat {{ display: flex; flex-direction: column; gap: 2px; }}
-  .stat .num {{ font-size: 1.5rem; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }}
+  .stat .num {{ font-size: 1.5rem; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }}
   .stat .lbl {{ color: var(--muted-2); font-size: .75rem; }}
   .bar {{
     position: relative; height: 6px; background: var(--border);
-    border-radius: 3px; overflow: hidden; margin-top: 6px;
+    border-radius: 3px; overflow: hidden; margin-top: 8px;
   }}
   .bar > span {{
     position: absolute; left: 0; top: 0; bottom: 0; background: var(--indigo);
     transition: width .3s;
   }}
   .bar.warn > span {{ background: var(--rose); }}
+  .bar.mid > span {{ background: var(--amber); }}
+  .bar.ok > span {{ background: var(--emerald); }}
+  /* sparkline: 1px-wide bars, no labels */
+  .spark {{
+    display: flex; align-items: flex-end; gap: 2px; height: 28px;
+    margin-top: 8px;
+  }}
+  .spark > span {{
+    flex: 1; background: var(--indigo); border-radius: 1px 1px 0 0;
+    opacity: .55; min-height: 2px;
+  }}
+  .spark > span.hot {{ background: var(--rose); opacity: .8; }}
   table {{ width: 100%; border-collapse: collapse; }}
   th {{ text-align: left; padding: .375rem .75rem; color: var(--muted-2); font-size: .6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border); }}
   td {{ border-bottom: 1px solid var(--border); }}
   td, th {{ padding: .375rem .75rem; }}
   tr:last-child td {{ border-bottom: none; }}
-  .pill {{ display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: .6875rem; font-weight: 600; }}
   .footer {{
     margin-top: 2rem; color: var(--muted-2); font-size: .75rem;
     display: flex; align-items: center; gap: .5rem; justify-content: space-between;
   }}
   .badge {{ display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: .6875rem; background: var(--bg-soft); border: 1px solid var(--border); color: var(--muted); font-family: ui-monospace, monospace; }}
   .scroll {{ overflow-x: auto; }}
+  .row {{ display: flex; align-items: center; gap: .75rem; }}
+  .row .label {{ width: 8rem; flex-shrink: 0; color: var(--muted); font-size: .8125rem; font-family: ui-monospace, monospace; }}
+  .row .count {{ width: 4.5rem; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; color: var(--text); font-size: .8125rem; }}
+  .row .bar {{ flex: 1; margin-top: 0; }}
+  .muted {{ color: var(--muted-2); }}
 </style>
 </head>
 <body>
@@ -106,14 +121,68 @@
     </span>
     <div>
       <div class="title">late · dashboard</div>
-      <div class="subtitle">read-only · super_admin only · auto-refresh 30s</div>
+      <div class="subtitle">read-only · super_admin only · auto-refresh 30s · clt</div>
     </div>
     <div class="status-pill {overall_class_pill}">
       {overall_dot} {overall_label}
     </div>
   </div>
 
-  <!-- Services -->
+  <!-- System: load · cpu · memory · swap · disk /data · uptime -->
+  <div class="grid grid-3" style="margin-bottom: 1rem;">
+    <div class="card">
+      <h2>cpu</h2>
+      <div class="stat">
+        <div class="num">{cpu_pct}%</div>
+        <div class="lbl">busy across all cores</div>
+        <div class="bar {cpu_bar_class}"><span style="width: {cpu_bar_width}%;"></span></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>memory</h2>
+      <div class="stat">
+        <div class="num">{mem_pct}%</div>
+        <div class="lbl">{mem_used} / {mem_total}</div>
+        <div class="bar {mem_bar_class}"><span style="width: {mem_bar_width}%;"></span></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>swap</h2>
+      <div class="stat">
+        <div class="num">{swap_pct}%</div>
+        <div class="lbl">{swap_used} / {swap_total}</div>
+        <div class="bar {swap_bar_class}"><span style="width: {swap_bar_width}%;"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-3" style="margin-bottom: 1rem;">
+    <div class="card">
+      <h2>load avg</h2>
+      <div class="stat">
+        <div class="num">{loadavg}</div>
+        <div class="lbl">1m · 5m · 15m</div>
+        <div class="spark">{load_spark}</div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>disk /data</h2>
+      <div class="stat">
+        <div class="num">{disk_data_pct}%</div>
+        <div class="lbl">{disk_data_used} / {disk_data_total}</div>
+        <div class="bar {disk_data_bar_class}"><span style="width: {disk_data_bar_width}%;"></span></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>uptime</h2>
+      <div class="stat">
+        <div class="num">{uptime}</div>
+        <div class="lbl">host</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Services: healthchecks of every backend -->
   <div class="card" style="margin-bottom: 1rem;">
     <h2>services</h2>
     <div class="scroll">
@@ -126,96 +195,7 @@
     </div>
   </div>
 
-  <!-- System -->
-  <div class="grid grid-3" style="margin-bottom: 1rem;">
-    <div class="card">
-      <h2>load</h2>
-      <div class="stat">
-        <div class="num">{loadavg}</div>
-        <div class="lbl">1m · 5m · 15m avg</div>
-      </div>
-    </div>
-    <div class="card">
-      <h2>memory</h2>
-      <div class="stat">
-        <div class="num">{mem_pct}%</div>
-        <div class="lbl">{mem_used} / {mem_total}</div>
-        <div class="bar {mem_bar_class}"><span style="width: {mem_bar_width}%;"></span></div>
-      </div>
-    </div>
-    <div class="card">
-      <h2>uptime</h2>
-      <div class="stat">
-        <div class="num">{uptime}</div>
-        <div class="lbl">host</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="grid grid-2" style="margin-bottom: 1rem;">
-    <div class="card">
-      <h2>disk / (root)</h2>
-      <div class="stat">
-        <div class="num">{disk_root_pct}%</div>
-        <div class="lbl">{disk_root_used} / {disk_root_total}</div>
-        <div class="bar {disk_root_bar_class}"><span style="width: {disk_root_bar_width}%;"></span></div>
-      </div>
-    </div>
-    <div class="card">
-      <h2>disk /data</h2>
-      <div class="stat">
-        <div class="num">{disk_data_pct}%</div>
-        <div class="lbl">{disk_data_used} / {disk_data_total}</div>
-        <div class="bar {disk_data_bar_class}"><span style="width: {disk_data_bar_width}%;"></span></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Docker -->
-  <div class="card" style="margin-bottom: 1rem;">
-    <h2>docker · {container_count} container{container_s}</h2>
-    <div class="scroll">
-      <table>
-        <thead><tr><th>name</th><th>image</th><th>status</th><th>ports</th></tr></thead>
-        <tbody>{container_rows}</tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Icecast live -->
-  <div class="card" style="margin-bottom: 1rem;">
-    <h2>icecast · {icecast_total} total listener{listener_s}</h2>
-    <div class="scroll">
-      <table>
-        <thead><tr><th>mount</th><th>listeners</th><th>current title</th></tr></thead>
-        <tbody>{icecast_rows}</tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Streams catalog -->
-  <div class="card" style="margin-bottom: 1rem;">
-    <h2>streams catalog · 18 soma fm</h2>
-    <div class="scroll">
-      <table>
-        <thead><tr><th>mount</th><th>label</th><th>notes</th></tr></thead>
-        <tbody>{stream_rows}</tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Recent deploys -->
-  <div class="card" style="margin-bottom: 1rem;">
-    <h2>recent deploys · last 10</h2>
-    <div class="scroll">
-      <table>
-        <thead><tr><th>when (utc)</th><th>repo</th><th>status</th><th>commit</th></tr></thead>
-        <tbody>{deploy_rows}</tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Databases -->
+  <!-- Databases: sizes + counts -->
   <div class="grid grid-2" style="margin-bottom: 1rem;">
     <div class="card">
       <h2>auth db · {auth_db_size}</h2>
@@ -235,21 +215,52 @@
     </div>
   </div>
 
+  <!-- Docker containers -->
+  <div class="card" style="margin-bottom: 1rem;">
+    <h2>docker · {container_count} container{container_s}</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>name</th><th>image</th><th>status</th><th>ports</th></tr></thead>
+        <tbody>{container_rows}</tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Icecast live: per-mount listeners as horizontal bars -->
+  <div class="card" style="margin-bottom: 1rem;">
+    <h2>icecast · live listeners</h2>
+    {icecast_bars}
+  </div>
+
+  <!-- Streams catalog -->
+  <div class="card" style="margin-bottom: 1rem;">
+    <h2>streams catalog · 18 soma fm</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>mount</th><th>label</th><th>listening now</th></tr></thead>
+        <tbody>{stream_rows}</tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Recent deploys -->
+  <div class="card" style="margin-bottom: 1rem;">
+    <h2>recent deploys · last 10</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>when (clt)</th><th>repo</th><th>status</th><th>commit</th></tr></thead>
+        <tbody>{deploy_rows}</tbody>
+      </table>
+    </div>
+  </div>
+
   <div class="footer">
-    <div>last gathered: <span class="badge">{gathered_at}</span></div>
+    <div>last gathered (clt): <span class="badge">{gathered_at}</span></div>
     <div>auto-refresh <span class="badge">30s</span></div>
   </div>
 </div>
 
 <script>
-  // ponytail: the browser never sends Authorization on a
-  // top-level navigation, so the first /dashboard request
-  // arrives bare. The endpoint returns 200 either way (with
-  // the same shell HTML); this script reads the bearer from
-  // localStorage and refetches with the header, replacing
-  // the document body in place. No client-side router,
-  // no framework, no state — the page is read-only and
-  // fully self-contained.
   (function() {{
     var session = null;
     try {{
@@ -257,17 +268,13 @@
       if (raw) session = JSON.parse(raw);
     }} catch (e) {{}}
     if (!session || !session.session_id) {{
-      // No session: send the user through the shell's auth
-      // gate, with /dashboard as the post-login target.
       window.location.replace('/irc?next=/dashboard');
       return;
     }}
     var bearer = session.session_id;
     var REFRESH_MS = 30000;
     function showShell() {{
-      // Reached when auth has failed; tell the user what
-      // happened and how to recover, without navigating.
-      document.body.innerHTML = '<div class="container"><div class="header"><div class="title">late · dashboard</div></div><div class="card"><h2>auth</h2><p style="color: var(--muted);">Sesión expirada o sin permisos de super_admin. <a style="color: var(--indigo);" href="/irc?next=/dashboard">Iniciar sesión de nuevo</a>.</p></div></div>';
+      document.body.innerHTML = '<div class="container"><div class="header"><div class="title">late · dashboard</div></div><div class="card"><h2>auth</h2><p class="muted">Sesión expirada o sin permisos de super_admin. <a style="color: var(--indigo);" href="/irc?next=/dashboard">Iniciar sesión de nuevo</a>.</p></div></div>';
     }}
     function refresh() {{
       fetch('/dashboard', {{ headers: {{ 'Authorization': 'Bearer ' + bearer }}, cache: 'no-store' }})
@@ -281,10 +288,6 @@
         }})
         .then(function(html) {{
           if (html) {{
-            // Replace the whole document so the new HTML's
-            // <script> tag re-runs. document.write keeps the
-            // same window so the JS that schedules the next
-            // refresh sticks around.
             document.open();
             document.write(html);
             document.close();
