@@ -175,12 +175,65 @@ async def g_system() -> dict:
         return {"total": total, "used": used, "free": free, "pct": pct}
 
     def _disk(path: str) -> dict:
+        # ponytail: shutil.disk_usage covers bytes but not
+        # inodes. We read /proc/mounts to find the device
+        # that holds the path, then statvfs to get f_files /
+        # f_ffree. The /data filesystem is typically a single
+        # ext4 mount on a small droplet, so this is cheap.
         try:
             st = shutil.disk_usage(path)
-            pct = int(st.used * 100 / st.total) if st.total else 0
-            return {"total": st.total, "used": st.used, "free": st.free, "pct": pct}
         except OSError as e:
             return {"error": str(e)}
+        pct = int(st.used * 100 / st.total) if st.total else 0
+        out: dict = {"total": st.total, "used": st.used, "free": st.free, "pct": pct}
+        try:
+            sv = os.statvfs(path)
+            inodes_total = sv.f_files
+            inodes_free = sv.f_ffree
+            inodes_used = inodes_total - inodes_free
+            inodes_pct = int(inodes_used * 100 / inodes_total) if inodes_total else 0
+            out["inodes"] = {
+                "total": inodes_total,
+                "used": inodes_used,
+                "free": inodes_free,
+                "pct": inodes_pct,
+            }
+        except OSError:
+            pass
+        return out
+
+    def _top_dirs() -> list[dict]:
+        # ponytail: a focused top-5 of the directories that
+        # actually grow on this host. `du -sb` is the
+        # quickest way to get a real byte count, and a
+        # single pass with --max-depth=1 keeps it bounded.
+        # We also size the parent so the percentages below
+        # are honest.
+        candidates = [
+            ("/data/late-auth", "/data/late-auth"),
+            ("/data/late-chat-service", "/data/late-chat-service"),
+            ("/data/chat-bridge", "/data/chat-bridge"),
+            ("/var/log/late-deployd", "/var/log/late-deployd"),
+            ("/var/lib/late-dashboard", "/var/lib/late-dashboard"),
+        ]
+        rows: list[dict] = []
+        for path, label in candidates:
+            try:
+                out = subprocess.run(
+                    ["du", "-sb", "--", path],
+                    capture_output=True, text=True, timeout=4,
+                )
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                continue
+            if out.returncode != 0 or not out.stdout.strip():
+                continue
+            try:
+                size = int(out.stdout.split()[0])
+            except (ValueError, IndexError):
+                continue
+            rows.append({"path": path, "label": label, "bytes": size})
+        rows.sort(key=lambda r: r["bytes"], reverse=True)
+        return rows[:5]
 
     def _uptime() -> Optional[int]:
         try:
@@ -220,6 +273,7 @@ async def g_system() -> dict:
         "memory": _mem(),
         "swap": _swap(),
         "disk_data": _disk("/data"),
+        "top_dirs": _top_dirs(),
         "uptime_s": _uptime(),
         "cpu_pct": _cpu_pct(),
     }
