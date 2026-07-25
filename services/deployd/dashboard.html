@@ -241,10 +241,14 @@
 </div>
 
 <script>
-  // ponytail: read the bearer from localStorage (set by the
-  // shell on /irc, /, etc.) and reload with the Authorization
-  // header preserved. The browser sends the bearer to the
-  // same-origin deployd; nginx proxies /dashboard to it.
+  // ponytail: the browser never sends Authorization on a
+  // top-level navigation, so the first /dashboard request
+  // arrives bare. The endpoint returns 200 either way (with
+  // the same shell HTML); this script reads the bearer from
+  // localStorage and refetches with the header, replacing
+  // the document body in place. No client-side router,
+  // no framework, no state — the page is read-only and
+  // fully self-contained.
   (function() {{
     var session = null;
     try {{
@@ -252,44 +256,45 @@
       if (raw) session = JSON.parse(raw);
     }} catch (e) {{}}
     if (!session || !session.session_id) {{
-      // No session in storage. We render once (the deployd will
-      // already have 401'd, so this never actually displays),
-      // but a guard here means the page can't crash on a fresh
-      // browser that landed here directly.
-      document.body.innerHTML = '<div class="container"><div class="header"><div class="title">late · dashboard</div></div><div class="card"><h2>no session</h2><p style="color: var(--muted);">Open this URL from inside <a style="color: var(--indigo);" href="/irc">/irc</a> after signing in.</p></div></div>';
+      // No session: send the user through the shell's auth
+      // gate, with /dashboard as the post-login target.
+      window.location.replace('/irc?next=/dashboard');
       return;
     }}
-    // We use fetch + replace rather than a meta-refresh so
-    // the Authorization header can be sent. The body is replaced
-    // wholesale; the page is read-only, no state to preserve.
     var bearer = session.session_id;
     var REFRESH_MS = 30000;
+    function showShell() {{
+      // Reached when auth has failed; tell the user what
+      // happened and how to recover, without navigating.
+      document.body.innerHTML = '<div class="container"><div class="header"><div class="title">late · dashboard</div></div><div class="card"><h2>auth</h2><p style="color: var(--muted);">Sesión expirada o sin permisos de super_admin. <a style="color: var(--indigo);" href="/irc?next=/dashboard">Iniciar sesión de nuevo</a>.</p></div></div>';
+    }}
     function refresh() {{
-      fetch('/dashboard', {{ headers: {{ 'Authorization': 'Bearer ' + bearer }}, cache: 'no-store', redirect: 'manual' }})
+      fetch('/dashboard', {{ headers: {{ 'Authorization': 'Bearer ' + bearer }}, cache: 'no-store' }})
         .then(function(r) {{
-          // type 'opaqueredirect' means the server returned a
-          // 302 (session expired). Bounce the user through
-          // the shell's login gate, with the dashboard as the
-          // post-login destination.
-          if (r.type === 'opaqueredirect' || r.status === 0) {{
-            window.location.href = '/irc?next=/dashboard';
-            return null;
-          }}
           if (r.status === 401 || r.status === 403) {{
-            document.body.innerHTML = '<div class="container"><div class="header"><div class="title">late · dashboard</div></div><div class="card"><h2>auth</h2><p style="color: var(--rose);">Session expired or not super_admin. Sign in again from <a style="color: var(--indigo);" href="/irc">/irc</a>.</p></div></div>';
+            showShell();
             return null;
           }}
           if (!r.ok) throw new Error('http ' + r.status);
           return r.text();
         }})
         .then(function(html) {{
-          if (html) document.open(); document.write(html); document.close();
+          if (html) {{
+            // Replace the whole document so the new HTML's
+            // <script> tag re-runs. document.write keeps the
+            // same window so the JS that schedules the next
+            // refresh sticks around.
+            document.open();
+            document.write(html);
+            document.close();
+          }}
         }})
         .catch(function(e) {{
           console.error('dashboard refresh failed', e);
         }});
     }}
-    setTimeout(refresh, REFRESH_MS);
+    refresh();
+    setInterval(refresh, REFRESH_MS);
   }})();
 </script>
 </body>

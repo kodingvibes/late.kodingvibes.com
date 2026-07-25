@@ -33,7 +33,7 @@ from typing import Any, Awaitable, Callable, Optional
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 
 # ponytail: same file as the auth service, shared secret.
 # late-deployd lives in the same trust zone as late-auth-service
@@ -78,59 +78,21 @@ GATHER_TIMEOUT_S = 4.0
 # ---------------------------------------------------------------------------
 # Auth
 # ---------------------------------------------------------------------------
-async def require_super_admin_response(request: Request):
-    """Same as require_super_admin, but returns a redirect on no-auth
-    instead of raising. FastAPI can't `raise RedirectResponse` from
-    inside a Depends; we need the function to return it directly.
-    Returns either a dict (the user) or a RedirectResponse.
-    """
-    auth = request.headers.get("Authorization", "")
-    if not auth.startswith("Bearer "):
-        return RedirectResponse(
-            url="/irc?next=/dashboard",
-            status_code=302,
-            headers={"Cache-Control": "no-store"},
-        )
-    token = auth[7:].strip()
-    if not token:
-        return RedirectResponse(
-            url="/irc?next=/dashboard",
-            status_code=302,
-            headers={"Cache-Control": "no-store"},
-        )
-    if not LATE_AUTH_SECRET:
-        raise HTTPException(503, "LATE_AUTH_SECRET not configured on deployd")
-    try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
-            r = await client.get(
-                f"{LATE_AUTH_URL}/api/auth/validate",
-                headers={
-                    "Authorization": f"Bearer {LATE_AUTH_SECRET}",
-                    "X-Session-Id": token,
-                },
-            )
-    except httpx.HTTPError as e:
-        raise HTTPException(503, f"late-auth unreachable: {e}")
-    if r.status_code != 200:
-        return RedirectResponse(
-            url="/irc?next=/dashboard",
-            status_code=302,
-            headers={"Cache-Control": "no-store"},
-        )
-    body = r.json()
-    user = body.get("user", body) if isinstance(body, dict) else body
-    if user.get("global_role") != "super_admin":
-        raise HTTPException(403, "super_admin required")
-    return user
-
-
 async def require_super_admin(request: Request) -> dict:
     """Validate the session against late-auth and require super_admin.
 
     Raises on any failure (no bearer, dead session, missing role).
-    Used by JSON endpoints. The /dashboard HTML endpoint uses
-    require_super_admin_response instead so it can redirect
-    unauthenticated users through the shell's login gate.
+    The /dashboard HTML endpoint uses this directly: the
+    browser never sends Authorization on a top-level navigation,
+    so this raises 401 and the HTML template's JS detects the
+    no-session state, bounces the user through /irc?next=/dashboard,
+    and retries with the bearer.
+
+    The 401 path is intentional: a top-level navigation should
+    render the page so the JS can drive the auth flow, not 302
+    to /irc. A 302 would put us in a redirect loop with the
+    shell (browser navigates, no Authorization sent, 302 again,
+    shell redirects back, etc.).
     """
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
@@ -154,10 +116,6 @@ async def require_super_admin(request: Request) -> dict:
     if r.status_code != 200:
         raise HTTPException(401, "invalid session")
     body = r.json()
-    # /api/auth/validate returns {"valid": true, "user": {...}}; we
-    # want the user dict for the role check. If the body is already
-    # a user-shaped dict (id, global_role), use it as-is so we
-    # don't break against an older or simpler late-auth.
     user = body.get("user", body) if isinstance(body, dict) else body
     if user.get("global_role") != "super_admin":
         raise HTTPException(403, "super_admin required")
@@ -643,12 +601,30 @@ def render_dashboard_html(payload: dict) -> str:
 def register(app: FastAPI) -> None:
     @app.get("/dashboard", response_class=HTMLResponse)
     async def dashboard(request: Request):
-        # ponytail: the auth helper returns a RedirectResponse
-        # on no-auth/dead-session (instead of raising) so we
-        # can bounce the user through the shell's login gate
-        # on the first visit and on session expiry.
-        auth = await require_super_admin_response(request)
-        if isinstance(auth, RedirectResponse):
-            return auth
+        # ponytail: a top-level navigation never carries an
+        # Authorization header, so the first request always
+        # 401s. The endpoint renders the page either way; the
+        # inline script reads the bearer from localStorage
+        # and refetches with the header, replacing the document
+        # in place. This avoids the redirect-loop that a 302
+        # would create (browser navigates without the header,
+        # 302 → /irc, /irc redirects back, etc.).
+        try:
+            await require_super_admin(request)
+            empty = False
+        except HTTPException:
+            empty = True
         payload = await gather_all()
+        if empty:
+            # ponytail: blank out the gathered metrics so the
+            # first paint doesn't show a snapshot of state
+            # the user isn't authorized to see. The script
+            # replaces the document in well under a second
+            # so this only flashes for an instant, but it
+            # matters for the case where the user's bearer
+            # is valid but their role is not super_admin:
+            # we never want to leak disk/db numbers to a
+            # non-admin who happens to know the URL.
+            payload = {k: {} for k in payload}
+            payload["gathered_at"] = "—"
         return HTMLResponse(render_dashboard_html(payload))
