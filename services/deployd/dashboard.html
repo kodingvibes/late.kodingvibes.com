@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>late · dashboard</title>
+<style>
+  /* ponytail: single inline stylesheet, no Tailwind, no external
+     assets. The page is one-shot rendered by late-deployd; we
+     don't want a CDN round-trip or a build step here. */
+  :root {{
+    --bg: #020617;
+    --bg-card: #0b1224;
+    --bg-soft: #0f172a;
+    --border: #1e293b;
+    --border-strong: #334155;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --muted-2: #64748b;
+    --indigo: #6366f1;
+    --violet: #a855f7;
+    --pink: #ec4899;
+    --emerald: #10b981;
+    --rose: #f43f5e;
+  }}
+  * {{ box-sizing: border-box; }}
+  html, body {{
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }}
+  .container {{ max-width: 1280px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }}
+  .header {{
+    display: flex; align-items: center; gap: .75rem; margin-bottom: 1.5rem;
+  }}
+  .logo {{
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 3rem; height: 3rem; border-radius: .75rem;
+    background: linear-gradient(135deg, var(--indigo), var(--violet), var(--pink));
+    color: white; box-shadow: 0 10px 25px -5px rgba(99,102,241,.4);
+  }}
+  .logo svg {{ width: 1.25rem; height: 1.25rem; }}
+  .title {{ font-size: 1.25rem; font-weight: 800; letter-spacing: -.01em; }}
+  .subtitle {{ color: var(--muted-2); font-size: .75rem; margin-top: 2px; }}
+  .status-pill {{
+    margin-left: auto; padding: .25rem .75rem; border-radius: 999px;
+    font-size: .75rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .05em;
+  }}
+  .status-pill.ok {{ background: rgba(16,185,129,.1); color: var(--emerald); border: 1px solid rgba(16,185,129,.3); }}
+  .status-pill.bad {{ background: rgba(244,63,94,.1); color: var(--rose); border: 1px solid rgba(244,63,94,.3); }}
+  .grid {{ display: grid; gap: 1rem; }}
+  .grid-2 {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+  .grid-3 {{ grid-template-columns: repeat(3, minmax(0, 1fr)); }}
+  @media (max-width: 900px) {{ .grid-2, .grid-3 {{ grid-template-columns: 1fr; }} }}
+  .card {{
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: .75rem; padding: 1rem 1.25rem;
+  }}
+  .card h2 {{
+    margin: 0 0 .75rem; font-size: .8125rem; font-weight: 700;
+    color: var(--muted); text-transform: uppercase; letter-spacing: .08em;
+  }}
+  .stat {{ display: flex; flex-direction: column; gap: 2px; }}
+  .stat .num {{ font-size: 1.5rem; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }}
+  .stat .lbl {{ color: var(--muted-2); font-size: .75rem; }}
+  .bar {{
+    position: relative; height: 6px; background: var(--border);
+    border-radius: 3px; overflow: hidden; margin-top: 6px;
+  }}
+  .bar > span {{
+    position: absolute; left: 0; top: 0; bottom: 0; background: var(--indigo);
+    transition: width .3s;
+  }}
+  .bar.warn > span {{ background: var(--rose); }}
+  table {{ width: 100%; border-collapse: collapse; }}
+  th {{ text-align: left; padding: .375rem .75rem; color: var(--muted-2); font-size: .6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border); }}
+  td {{ border-bottom: 1px solid var(--border); }}
+  td, th {{ padding: .375rem .75rem; }}
+  tr:last-child td {{ border-bottom: none; }}
+  .pill {{ display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: .6875rem; font-weight: 600; }}
+  .footer {{
+    margin-top: 2rem; color: var(--muted-2); font-size: .75rem;
+    display: flex; align-items: center; gap: .5rem; justify-content: space-between;
+  }}
+  .badge {{ display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: .6875rem; background: var(--bg-soft); border: 1px solid var(--border); color: var(--muted); font-family: ui-monospace, monospace; }}
+  .scroll {{ overflow-x: auto; }}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <span class="logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
+        <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
+        <line x1="6" y1="1" x2="6" y2="4" />
+        <line x1="10" y1="1" x2="10" y2="4" />
+        <line x1="14" y1="1" x2="14" y2="4" />
+      </svg>
+    </span>
+    <div>
+      <div class="title">late · dashboard</div>
+      <div class="subtitle">read-only · super_admin only · auto-refresh 30s</div>
+    </div>
+    <div class="status-pill {overall_class_pill}">
+      {overall_dot} {overall_label}
+    </div>
+  </div>
+
+  <!-- Services -->
+  <div class="card" style="margin-bottom: 1rem;">
+    <h2>services</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>service</th><th>status</th><th>latency</th><th>detail</th></tr></thead>
+        <tbody>
+          {service_rows}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- System -->
+  <div class="grid grid-3" style="margin-bottom: 1rem;">
+    <div class="card">
+      <h2>load</h2>
+      <div class="stat">
+        <div class="num">{loadavg}</div>
+        <div class="lbl">1m · 5m · 15m avg</div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>memory</h2>
+      <div class="stat">
+        <div class="num">{mem_pct}%</div>
+        <div class="lbl">{mem_used} / {mem_total}</div>
+        <div class="bar {mem_bar_class}"><span style="width: {mem_bar_width}%;"></span></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>uptime</h2>
+      <div class="stat">
+        <div class="num">{uptime}</div>
+        <div class="lbl">host</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-2" style="margin-bottom: 1rem;">
+    <div class="card">
+      <h2>disk / (root)</h2>
+      <div class="stat">
+        <div class="num">{disk_root_pct}%</div>
+        <div class="lbl">{disk_root_used} / {disk_root_total}</div>
+        <div class="bar {disk_root_bar_class}"><span style="width: {disk_root_bar_width}%;"></span></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>disk /data</h2>
+      <div class="stat">
+        <div class="num">{disk_data_pct}%</div>
+        <div class="lbl">{disk_data_used} / {disk_data_total}</div>
+        <div class="bar {disk_data_bar_class}"><span style="width: {disk_data_bar_width}%;"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Docker -->
+  <div class="card" style="margin-bottom: 1rem;">
+    <h2>docker · {container_count} container{container_s}</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>name</th><th>image</th><th>status</th><th>ports</th></tr></thead>
+        <tbody>{container_rows}</tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Icecast live -->
+  <div class="card" style="margin-bottom: 1rem;">
+    <h2>icecast · {icecast_total} total listener{listener_s}</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>mount</th><th>listeners</th><th>current title</th></tr></thead>
+        <tbody>{icecast_rows}</tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Streams catalog -->
+  <div class="card" style="margin-bottom: 1rem;">
+    <h2>streams catalog · 18 soma fm</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>mount</th><th>label</th><th>notes</th></tr></thead>
+        <tbody>{stream_rows}</tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Recent deploys -->
+  <div class="card" style="margin-bottom: 1rem;">
+    <h2>recent deploys · last 10</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>when (utc)</th><th>repo</th><th>status</th><th>commit</th></tr></thead>
+        <tbody>{deploy_rows}</tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Databases -->
+  <div class="grid grid-2" style="margin-bottom: 1rem;">
+    <div class="card">
+      <h2>auth db · {auth_db_size}</h2>
+      <div class="grid grid-2" style="margin-top: .5rem;">
+        <div class="stat"><div class="num">{auth_users}</div><div class="lbl">users</div></div>
+        <div class="stat"><div class="num">{auth_sessions}</div><div class="lbl">sessions</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>chat db · {chat_db_size}</h2>
+      <div class="grid grid-2" style="margin-top: .5rem;">
+        <div class="stat"><div class="num">{chat_channels}</div><div class="lbl">channels</div></div>
+        <div class="stat"><div class="num">{chat_messages}</div><div class="lbl">messages</div></div>
+        <div class="stat"><div class="num">{chat_attachments}</div><div class="lbl">attachments</div></div>
+        <div class="stat"><div class="num">{chat_voice}</div><div class="lbl">voice notes</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div>last gathered: <span class="badge">{gathered_at}</span></div>
+    <div>auto-refresh <span class="badge">30s</span></div>
+  </div>
+</div>
+
+<script>
+  // ponytail: read the bearer from localStorage (set by the
+  // shell on /irc, /, etc.) and reload with the Authorization
+  // header preserved. The browser sends the bearer to the
+  // same-origin deployd; nginx proxies /dashboard to it.
+  (function() {{
+    var session = null;
+    try {{
+      var raw = localStorage.getItem('late.session') || localStorage.getItem('chat.session');
+      if (raw) session = JSON.parse(raw);
+    }} catch (e) {{}}
+    if (!session || !session.session_id) {{
+      // No session in storage. We render once (the deployd will
+      // already have 401'd, so this never actually displays),
+      // but a guard here means the page can't crash on a fresh
+      // browser that landed here directly.
+      document.body.innerHTML = '<div class="container"><div class="header"><div class="title">late · dashboard</div></div><div class="card"><h2>no session</h2><p style="color: var(--muted);">Open this URL from inside <a style="color: var(--indigo);" href="/irc">/irc</a> after signing in.</p></div></div>';
+      return;
+    }}
+    // We use fetch + replace rather than a meta-refresh so
+    // the Authorization header can be sent. The body is replaced
+    // wholesale; the page is read-only, no state to preserve.
+    var bearer = session.session_id;
+    var REFRESH_MS = 30000;
+    function refresh() {{
+      fetch('/dashboard', {{ headers: {{ 'Authorization': 'Bearer ' + bearer }}, cache: 'no-store' }})
+        .then(function(r) {{
+          if (r.status === 401 || r.status === 403) {{
+            document.body.innerHTML = '<div class="container"><div class="header"><div class="title">late · dashboard</div></div><div class="card"><h2>auth</h2><p style="color: var(--rose);">Session expired or not super_admin. Sign in again from <a style="color: var(--indigo);" href="/irc">/irc</a>.</p></div></div>';
+            return null;
+          }}
+          if (!r.ok) throw new Error('http ' + r.status);
+          return r.text();
+        }})
+        .then(function(html) {{
+          if (html) document.open(); document.write(html); document.close();
+        }})
+        .catch(function(e) {{
+          console.error('dashboard refresh failed', e);
+        }});
+    }}
+    setTimeout(refresh, REFRESH_MS);
+  }})();
+</script>
+</body>
+</html>
