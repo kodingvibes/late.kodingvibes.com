@@ -440,12 +440,29 @@ async def snapshot() -> dict:
     swap = system.get("swap", {}) or {}
     if swap.get("pct") is not None:
         dashboard_history.append_sample("swap", swap["pct"])
+    # Three more series: total icecast listeners, average
+    # service latency, and 1m load average. Same 3s
+    # cadence as the gauges, so all the recharts time
+    # series move on the same x axis.
+    ice = out.get("icecast", {}) or {}
+    if ice.get("total_listeners") is not None:
+        dashboard_history.append_sample("listeners", int(ice["total_listeners"]))
+    svcs = out.get("services", {}) or {}
+    lats = [int(v.get("ms", 0)) for v in svcs.values() if isinstance(v, dict) and v.get("ms") is not None]
+    if lats:
+        dashboard_history.append_sample("latency_ms", int(sum(lats) / len(lats)))
+    loadavg = (system.get("loadavg") or "").split()
+    if loadavg:
+        try:
+            dashboard_history.append_sample("load_1m", float(loadavg[0]))
+        except ValueError:
+            pass
     return out
 
 
 def history(metric: str, range_seconds: int) -> list[dict]:
     """Return time-series samples for a metric in a range."""
-    if metric not in ("cpu", "memory", "swap"):
+    if metric not in ("cpu", "memory", "swap", "listeners", "latency_ms", "load_1m"):
         return []
     dashboard_history.roll()
     return dashboard_history.read_samples(metric, range_seconds)
