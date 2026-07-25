@@ -108,15 +108,15 @@ export function UserMenu() {
 
       {open && (
         <div
-          className={`absolute right-0 mt-2 w-64 rounded-xl border shadow-accent overflow-hidden z-50 animate-menu-drop ${
+          className={`absolute right-0 mt-2 w-64 rounded-xl border shadow-accent overflow-hidden z-50 animate-menu-drop backdrop-blur-md ${
             isLight
-              ? "bg-white border-accent/30"
-              : "bg-slate-900 border-accent/30"
+              ? "bg-white/75 border-accent/30"
+              : "bg-slate-900/75 border-accent/30"
           }`}
         >
           <div
             className={`flex items-center gap-3 px-3 py-3 border-b ${
-              isLight ? "border-slate-200" : "border-slate-800"
+              isLight ? "border-slate-200/60" : "border-slate-800/60"
             }`}
           >
             <UserAvatar src={user.avatar_url} nick={nick} size="md" />
@@ -133,7 +133,7 @@ export function UserMenu() {
               to="/profile"
               onClick={() => setOpen(false)}
               className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors ${
-                isLight ? "text-slate-700 hover:bg-slate-100" : "text-slate-200 hover:bg-slate-800"
+                isLight ? "text-slate-700 hover:bg-slate-100/70" : "text-slate-200 hover:bg-slate-800/50"
               }`}
             >
               <UserIcon className="w-4 h-4" />
@@ -146,7 +146,7 @@ export function UserMenu() {
                 setShowNick(true);
               }}
               className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors ${
-                isLight ? "text-slate-700 hover:bg-slate-100" : "text-slate-200 hover:bg-slate-800"
+                isLight ? "text-slate-700 hover:bg-slate-100/70" : "text-slate-200 hover:bg-slate-800/50"
               }`}
             >
               <SettingsIcon className="w-4 h-4" />
@@ -159,7 +159,7 @@ export function UserMenu() {
                 setShowNotif(true);
               }}
               className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors ${
-                isLight ? "text-slate-700 hover:bg-slate-100" : "text-slate-200 hover:bg-slate-800"
+                isLight ? "text-slate-700 hover:bg-slate-100/70" : "text-slate-200 hover:bg-slate-800/50"
               }`}
             >
               <Bell className="w-4 h-4" />
@@ -172,7 +172,7 @@ export function UserMenu() {
                 setShowTheme(true);
               }}
               className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors ${
-                isLight ? "text-slate-700 hover:bg-slate-100" : "text-slate-200 hover:bg-slate-800"
+                isLight ? "text-slate-700 hover:bg-slate-100/70" : "text-slate-200 hover:bg-slate-800/50"
               }`}
             >
               <Palette className="w-4 h-4" />
@@ -182,7 +182,7 @@ export function UserMenu() {
 
           <div
             className={`border-t py-1 ${
-              isLight ? "border-slate-200" : "border-slate-800"
+              isLight ? "border-slate-200/60" : "border-slate-800/60"
             }`}
           >
             <button

@@ -44,14 +44,14 @@ export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
     >
       <div
         ref={ref}
-        className={`w-full max-w-sm rounded-2xl border shadow-2xl overflow-hidden animate-menu-pop ${
-          isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-700"
+        className={`w-full max-w-sm rounded-2xl border shadow-2xl overflow-hidden animate-menu-pop backdrop-blur-md ${
+          isLight ? "bg-white/80 border-slate-300/60" : "bg-slate-900/75 border-slate-700/60"
         }`}
         onClick={(e) => e.stopPropagation()}
       >
         <div
           className={`flex items-center gap-2 px-5 py-3 border-b ${
-            isLight ? "border-slate-200" : "border-slate-700"
+            isLight ? "border-slate-300/60" : "border-slate-700/60"
           }`}
         >
           <Palette className="w-4 h-4" />
@@ -71,8 +71,8 @@ export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
                   mode === "light"
                     ? "bg-accent/20 border-accent text-accent"
                     : isLight
-                    ? "border-slate-200 hover:bg-slate-50"
-                    : "border-slate-700 hover:bg-slate-800"
+                    ? "border-slate-300/60 hover:bg-slate-50/70"
+                    : "border-slate-700/60 hover:bg-slate-800/50"
                 }`}
               >
                 <Sun className="w-4 h-4" />
@@ -85,8 +85,8 @@ export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
                   mode === "dark"
                     ? "bg-accent/20 border-accent text-accent"
                     : isLight
-                    ? "border-slate-200 hover:bg-slate-50"
-                    : "border-slate-700 hover:bg-slate-800"
+                    ? "border-slate-300/60 hover:bg-slate-50/70"
+                    : "border-slate-700/60 hover:bg-slate-800/50"
                 }`}
               >
                 <Moon className="w-4 h-4" />
@@ -123,7 +123,7 @@ export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
 
         <div
           className={`flex justify-end px-5 py-3 border-t ${
-            isLight ? "border-slate-200 bg-slate-50" : "border-slate-700 bg-slate-900/60"
+            isLight ? "border-slate-300/60 bg-slate-50/70" : "border-slate-700/60 bg-slate-900/60"
           }`}
         >
           <button

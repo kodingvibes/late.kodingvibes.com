@@ -84,16 +84,16 @@ export function NotificationSettingsModal({ open, onClose, onSaved }: Notificati
       onClick={onClose}
     >
       <div
-        className={`w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden animate-menu-pop ${
+        className={`w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden animate-menu-pop backdrop-blur-md ${
           isLight
-            ? "bg-white border-slate-200"
-            : "bg-slate-900 border-slate-700"
+            ? "bg-white/80 border-slate-300/60"
+            : "bg-slate-900/75 border-slate-700/60"
         }`}
         onClick={(e) => e.stopPropagation()}
       >
         <div
           className={`flex items-center justify-between px-5 py-3 border-b ${
-            isLight ? "border-slate-200" : "border-slate-700"
+            isLight ? "border-slate-300/60" : "border-slate-700/60"
           }`}
         >
           <h2 className="text-base font-semibold flex items-center gap-2">
@@ -103,7 +103,7 @@ export function NotificationSettingsModal({ open, onClose, onSaved }: Notificati
           <button
             type="button"
             onClick={onClose}
-            className={`p-1 rounded ${isLight ? "text-slate-500 hover:bg-slate-100" : "text-slate-400 hover:bg-slate-800"}`}
+            className={`p-1 rounded ${isLight ? "text-slate-500 hover:bg-slate-100/70" : "text-slate-400 hover:bg-slate-800/50"}`}
             aria-label="Cerrar"
           >
             <X className="w-4 h-4" />
@@ -125,8 +125,8 @@ export function NotificationSettingsModal({ open, onClose, onSaved }: Notificati
                     prefs.mode === m
                       ? "bg-accent/20 border-accent text-accent"
                       : isLight
-                      ? "border-slate-200 hover:bg-slate-50"
-                      : "border-slate-700 hover:bg-slate-800"
+                      ? "border-slate-300/60 hover:bg-slate-50/70"
+                      : "border-slate-700/60 hover:bg-slate-800/50"
                   }`}
                 >
                   {m === "mentions" ? "Menciones" : m === "all" ? "Todo" : "Nada"}
@@ -180,14 +180,14 @@ export function NotificationSettingsModal({ open, onClose, onSaved }: Notificati
 
         <div
           className={`flex justify-end gap-2 px-5 py-3 border-t ${
-            isLight ? "border-slate-200 bg-slate-50" : "border-slate-700 bg-slate-900/60"
+            isLight ? "border-slate-300/60 bg-slate-50/70" : "border-slate-700/60 bg-slate-900/60"
           }`}
         >
           <button
             type="button"
             onClick={onClose}
             className={`px-3 py-1.5 rounded-lg text-sm ${
-              isLight ? "text-slate-700 hover:bg-slate-200" : "text-slate-300 hover:bg-slate-800"
+              isLight ? "text-slate-700 hover:bg-slate-200/70" : "text-slate-300 hover:bg-slate-800/50"
             }`}
           >
             Cancelar

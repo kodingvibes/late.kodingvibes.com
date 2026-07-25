@@ -55,8 +55,8 @@ export function Home() {
             to="/irc"
             className={`group block rounded-2xl border p-5 transition-colors ${
               isLight
-                ? "border-slate-200 bg-white hover:border-accent/50 hover:bg-slate-50"
-                : "border-slate-800 bg-slate-900/40 hover:border-accent/50 hover:bg-slate-900/80"
+                ? "border-slate-300/60 bg-white/70 hover:border-accent/50 hover:bg-white/90"
+                : "border-slate-700/60 bg-slate-900/40 hover:border-accent/50 hover:bg-slate-900/70"
             }`}
           >
             <div className="flex items-center gap-2 mb-2">
@@ -73,8 +73,8 @@ export function Home() {
             to="/icecast"
             className={`group block rounded-2xl border p-5 transition-colors ${
               isLight
-                ? "border-slate-200 bg-white hover:border-accent/50 hover:bg-slate-50"
-                : "border-slate-800 bg-slate-900/40 hover:border-accent/50 hover:bg-slate-900/80"
+                ? "border-slate-300/60 bg-white/70 hover:border-accent/50 hover:bg-white/90"
+                : "border-slate-700/60 bg-slate-900/40 hover:border-accent/50 hover:bg-slate-900/70"
             }`}
           >
             <div className="flex items-center gap-2 mb-2">
@@ -107,9 +107,9 @@ export function Home() {
               key={s.mount}
               to="/icecast"
               className={`group flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${
-                isLight
-                  ? "border-slate-200 bg-white hover:border-accent/40 hover:bg-slate-50"
-                  : "border-slate-800 bg-slate-900/40 hover:border-accent/40 hover:bg-slate-900/80"
+              isLight
+                ? "border-slate-300/60 bg-white/70 hover:border-accent/40 hover:bg-white/90"
+                : "border-slate-700/60 bg-slate-900/40 hover:border-accent/40 hover:bg-slate-900/70"
               }`}
             >
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-lg bg-accent/20 ${s.accent || "text-accent"}`}>

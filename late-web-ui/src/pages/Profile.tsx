@@ -159,8 +159,8 @@ export function Profile() {
         </div>
 
         <section
-          className={`rounded-2xl border p-6 flex items-center gap-5 ${
-            isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800"
+          className={`rounded-2xl border p-6 flex items-center gap-5 backdrop-blur-sm ${
+            isLight ? "bg-white/70 border-slate-300/60" : "bg-slate-900/60 border-slate-700/60"
           }`}
         >
           <UserAvatar src={user.avatar_url} nick={nick} size="lg" className="w-20 h-20 text-xl" />
@@ -180,8 +180,8 @@ export function Profile() {
             onClick={() => setShowNick(true)}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm ${
               isLight
-                ? "border border-slate-200 hover:bg-slate-100"
-                : "border border-slate-700 hover:bg-slate-800"
+                ? "border border-slate-300/60 hover:bg-white/70"
+                : "border border-slate-700/60 hover:bg-slate-800/50"
             }`}
           >
             <Edit3 className="w-4 h-4" />
@@ -190,8 +190,8 @@ export function Profile() {
         </section>
 
         <section
-          className={`rounded-2xl border p-6 space-y-4 ${
-            isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800"
+          className={`rounded-2xl border p-6 space-y-4 backdrop-blur-sm ${
+            isLight ? "bg-white/70 border-slate-300/60" : "bg-slate-900/60 border-slate-700/60"
           }`}
         >
           <h2 className="text-sm font-semibold uppercase tracking-wider opacity-70">Avatar</h2>
@@ -222,8 +222,8 @@ export function Profile() {
                 disabled={uploading || removing}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
                   isLight
-                    ? "border border-slate-200 hover:bg-slate-100"
-                    : "border border-slate-700 hover:bg-slate-800"
+                    ? "border border-slate-300/60 hover:bg-white/70"
+                    : "border border-slate-700/60 hover:bg-slate-800/50"
                 }`}
               >
                 <Trash2 className="w-4 h-4" />
@@ -239,8 +239,8 @@ export function Profile() {
         </section>
 
         <section
-          className={`rounded-2xl border p-6 grid grid-cols-1 sm:grid-cols-2 gap-3 ${
-            isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800"
+          className={`rounded-2xl border p-6 grid grid-cols-1 sm:grid-cols-2 gap-3 backdrop-blur-sm ${
+            isLight ? "bg-white/70 border-slate-300/60" : "bg-slate-900/60 border-slate-700/60"
           }`}
         >
           <button
@@ -248,8 +248,8 @@ export function Profile() {
             onClick={() => setShowNotif(true)}
             className={`flex items-center gap-3 p-3 rounded-xl text-sm ${
               isLight
-                ? "border border-slate-200 hover:bg-slate-50"
-                : "border border-slate-700 hover:bg-slate-800"
+                ? "border border-slate-300/60 hover:bg-white/70"
+                : "border border-slate-700/60 hover:bg-slate-800/50"
             }`}
           >
             <Bell className="w-4 h-4" />
@@ -260,8 +260,8 @@ export function Profile() {
             onClick={() => setShowTheme(true)}
             className={`flex items-center gap-3 p-3 rounded-xl text-sm ${
               isLight
-                ? "border border-slate-200 hover:bg-slate-50"
-                : "border border-slate-700 hover:bg-slate-800"
+                ? "border border-slate-300/60 hover:bg-white/70"
+                : "border border-slate-700/60 hover:bg-slate-800/50"
             }`}
           >
             <Palette className="w-4 h-4" />
