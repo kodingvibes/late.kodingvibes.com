@@ -6,6 +6,7 @@ import sqlite3
 import pytest
 import respx
 import jwt
+import httpx
 from pathlib import Path
 from httpx import AsyncClient, ASGITransport
 
@@ -60,8 +61,45 @@ def consume_admin_slot(tmp_db):
     upsert_user("__admin_consumer__", "admin-consumer@example.com", "Admin Consumer")
 
 
+@pytest.fixture(autouse=True)
+def mock_late_auth():
+    """Mock the call to late-auth /api/auth/validate.
+
+    The mock is dynamic: any session_id is accepted, and the user
+    returned comes from a test-managed dict keyed by session_id.
+    Tests should call `mock_late_auth.register(session_id, user)` to
+    enroll a session, or rely on the auto-register helper from
+    `make_session`.
+    """
+    import respx
+    from core.config import LATE_AUTH_URL
+
+    state = {"sessions": {}}
+
+    with respx.mock(assert_all_called=False) as respx_mock:
+        def handler(request):
+            sid = request.headers.get("X-Session-Id")
+            user = state["sessions"].get(sid)
+            if not user:
+                return httpx.Response(401, json={"detail": "Invalid or expired session"})
+            # late-auth returns `id`; chat-bridge reads `user_id` from
+            # its session. Mirror the production alias here too.
+            return httpx.Response(200, json={
+                "valid": True,
+                "user": {**user, "user_id": user.get("id")},
+            })
+
+        respx_mock.get(f"{LATE_AUTH_URL}/api/auth/validate").mock(side_effect=handler)
+
+        class _Mock:
+            def register(self, session_id: str, user: dict):
+                state["sessions"][session_id] = user
+
+        yield _Mock()
+
+
 @pytest.fixture
-def make_session(tmp_db):
+def make_session(mock_late_auth, tmp_db):
     created = []
 
     def _make(sub="test-sub", email="test@example.com", name="Test User"):
@@ -69,12 +107,11 @@ def make_session(tmp_db):
         from core.auth import generate_session_id
         user = upsert_user(sub, email, name)
         session_id = generate_session_id()
-        now = int(time.time())
-        with db() as conn:
-            conn.execute(
-                "INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
-                (session_id, user["id"], now, now + 86400 * 365),
-            )
+        # chat-bridge still keeps a local users mirror so the rest of
+        # the code can read display_name without a round-trip. Session
+        # validation, however, now goes through late-auth — the mock
+        # above returns the user when chat-bridge calls /api/auth/validate.
+        mock_late_auth.register(session_id, user)
         created.append(user)
         return session_id, user
 

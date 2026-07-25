@@ -59,7 +59,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from routers.auth import router as auth_router
 from routers.channels import router as channels_router
 from routers.messages import router as messages_router
 from routers.reactions import router as reactions_router
@@ -72,7 +71,9 @@ from routers.ws import router as ws_router
 from routers.link_preview import router as link_preview_router
 import voice
 
-app.include_router(auth_router)
+# ponytail: auth lives in late-auth-service (/api/auth/*). chat-bridge
+# only validates incoming Bearer tokens via the late-auth /validate
+# endpoint and keeps a local users mirror for display_name lookups.
 app.include_router(channels_router)
 app.include_router(messages_router)
 app.include_router(reactions_router)

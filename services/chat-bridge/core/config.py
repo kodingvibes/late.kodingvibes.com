@@ -6,6 +6,13 @@ KV_WEBHOOK_URL = os.environ.get("KV_WEBHOOK_URL", "")
 KV_WEBHOOK_SECRET = os.environ.get("KV_WEBHOOK_SECRET", "")
 SHARED_INTERNAL_SECRET = os.environ.get("SHARED_INTERNAL_SECRET", SSO_SECRET)
 
+# ponytail: late-auth-service owns users + sessions. chat-bridge
+# validates incoming Bearer tokens by calling /api/auth/validate on
+# the auth service. The two services share LATE_AUTH_SECRET over the
+# loopback interface.
+LATE_AUTH_URL = os.environ.get("LATE_AUTH_URL", "http://127.0.0.1:9300")
+LATE_AUTH_SECRET = os.environ.get("LATE_AUTH_SECRET", SSO_SECRET)
+
 ATTACHMENT_DIR = os.environ.get("ATTACHMENT_DIR", "/var/lib/late-attachments")
 MAX_ATTACHMENT_BYTES = int(os.environ.get("MAX_ATTACHMENT_BYTES", str(50 * 1024 * 1024)))
 ATTACHMENT_TTL_DAYS = int(os.environ.get("ATTACHMENT_TTL_DAYS", "7"))
