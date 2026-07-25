@@ -1,3 +1,10 @@
+# [1.9.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.8.1...v1.9.0) (2026-07-25)
+
+
+### Features
+
+* **shell:** gate /icecast and /irc behind an auth check ([fe88681](https://github.com/kodingvibes/late.kodingvibes.com/commit/fe8868191c09ab21ea13516ef9d3e597dabdef59))
+
 ## [1.8.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.8.0...v1.8.1) (2026-07-25)
 
 
