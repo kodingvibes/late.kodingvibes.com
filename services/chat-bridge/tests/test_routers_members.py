@@ -20,8 +20,8 @@ class TestListMembers:
 class TestChangeRole:
     async def test_change_role(self, client, consume_admin_slot, make_session, mock_late_auth):
         from core.auth import generate_session_id
-        from repositories.users import get_user_by_id
-        admin = get_user_by_id(consume_admin_slot)
+        from tests.conftest import _create_test_user  # type: ignore
+        admin = _create_test_user(sub="__admin_consumer__", email="admin-consumer@example.com", name="Admin Consumer", user_id=consume_admin_slot)
         # The change_role route checks global_role on the session
         # (via late-auth). Re-register the admin with super_admin.
         admin_session = {**admin, "global_role": "super_admin"}
@@ -52,8 +52,8 @@ class TestChangeRole:
 
     async def test_change_role_invalid(self, client, consume_admin_slot, make_session, mock_late_auth):
         from core.auth import generate_session_id
-        from repositories.users import get_user_by_id
-        admin = get_user_by_id(consume_admin_slot)
+        from tests.conftest import _create_test_user  # type: ignore
+        admin = _create_test_user(sub="__admin_consumer__", email="admin-consumer@example.com", name="Admin Consumer", user_id=consume_admin_slot)
         admin_session = {**admin, "global_role": "super_admin"}
         admin_token = generate_session_id()
         mock_late_auth.register(admin_token, admin_session)
@@ -67,8 +67,8 @@ class TestChangeRole:
 class TestChangeMute:
     async def test_mute(self, client, consume_admin_slot, make_session, mock_late_auth):
         from core.auth import generate_session_id
-        from repositories.users import get_user_by_id
-        admin = get_user_by_id(consume_admin_slot)
+        from tests.conftest import _create_test_user  # type: ignore
+        admin = _create_test_user(sub="__admin_consumer__", email="admin-consumer@example.com", name="Admin Consumer", user_id=consume_admin_slot)
         admin_session = {**admin, "global_role": "super_admin"}
         admin_token = generate_session_id()
         mock_late_auth.register(admin_token, admin_session)

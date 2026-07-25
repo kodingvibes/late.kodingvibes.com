@@ -74,6 +74,11 @@ def test_all_tables_exist():
     from notes_store import init_table
     init_table(conn)
     tables = [r["name"] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
-    expected = {"users", "channels", "channel_members", "messages", "reactions", "sessions", "attachments", "channel_categories", "voice_notes"}
+    expected = {"channels", "channel_members", "messages", "reactions", "attachments", "channel_categories", "voice_notes"}
+    # ponytail: users and sessions used to live here but moved to
+    # late-auth-service. The local `users` table still gets created
+    # on demand by tests that need it for FK targets (see
+    # _create_test_user in conftest.py), but it's not part of the
+    # baseline schema.
     for t in expected:
         assert t in tables, f"Missing table: {t}"

@@ -59,14 +59,82 @@ async def client() -> AsyncClient:
         yield ac
 
 
+def _create_test_user(sub, email, name, *, user_id=None, role="user"):
+    """Create a row in the local users table and return the user dict.
+
+    The local users table still exists for FK targets (channels,
+    messages, etc.). The new chat-bridge schema no longer creates
+    it, so for tests we create it on demand here. chat-bridge
+    doesn't read from it at runtime — that's all late-auth now —
+    but the FK constraints on channels/messages/voice_notes
+    still point at users and need a real row to land.
+    """
+    from core.db import db
+    display = email.split("@")[0]
+    with db() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                supabase_sub TEXT UNIQUE NOT NULL,
+                email TEXT NOT NULL,
+                name TEXT,
+                display_name TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                last_seen INTEGER NOT NULL,
+                global_role TEXT NOT NULL DEFAULT 'user'
+            )
+        """)
+        existing = conn.execute(
+            "SELECT id, supabase_sub, email, name, display_name, global_role "
+            "FROM users WHERE supabase_sub = ?",
+            (sub,),
+        ).fetchone()
+        if existing:
+            user_id_db = existing["id"]
+            conn.execute("UPDATE users SET last_seen = ? WHERE id = ?", (int(time.time()), user_id_db))
+            display = existing["display_name"]
+            role = existing["global_role"] or role
+        else:
+            cur = conn.execute(
+                "INSERT INTO users (supabase_sub, email, name, display_name, created_at, last_seen) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (sub, email, name, display, int(time.time()), int(time.time())),
+            )
+            user_id_db = cur.lastrowid
+        # ponytail: chat-bridge membership invariant — every user
+        # is in every channel. We materialize it the moment a test
+        # user is created so the various "is this user a member?"
+        # guards in voice.py / attachments.py / messages.py see
+        # the right row.
+        if user_id is not None:
+            user_id_db = user_id
+        for ch in conn.execute("SELECT id FROM channels").fetchall():
+            conn.execute(
+                "INSERT OR IGNORE INTO channel_members (channel_id, user_id, joined_at) VALUES (?, ?, ?)",
+                (ch["id"], user_id_db, int(time.time())),
+            )
+    return {
+        "id": user_id_db,
+        "supabase_sub": sub,
+        "email": email,
+        "name": name,
+        "display_name": display,
+        "global_role": role,
+    }
+
+
 @pytest.fixture
 def consume_admin_slot(tmp_db, mock_late_auth):
     """Create a dummy user first so user_id=1 gets admin from migration.
     Subsequent users (id>=2) will NOT have admin role by default.
     Also registers the admin user with the late-auth mock so the
     chat-bridge code path can return their session."""
-    from repositories.users import upsert_user
-    admin = upsert_user("__admin_consumer__", "admin-consumer@example.com", "Admin Consumer")
+    admin = _create_test_user(
+        "__admin_consumer__",
+        "admin-consumer@example.com",
+        "Admin Consumer",
+        role="super_admin",
+    )
     assert admin["id"] == 1, f"consume_admin_slot must run first; got id={admin['id']}"
     admin_session = {**admin, "global_role": "super_admin"}
     mock_late_auth.register("consume-admin-slot-token", admin_session)
@@ -165,12 +233,14 @@ def make_session(mock_late_auth, tmp_db):
 
     def _make(sub="test-sub", email="test@example.com", name="Test User", user_id=None):
         from core.auth import generate_session_id
-        from repositories.users import upsert_user
         from services.user_cache import prime
-        user = upsert_user(sub, email, name)
+        user = _create_test_user(sub, email, name)
         user_id_eff = user["id"] if user_id is None else user_id
         session_id = generate_session_id()
-        mock_late_auth.register(session_id, {**user, "id": user_id_eff, "global_role": user.get("global_role", "user")})
+        mock_late_auth.register(
+            session_id,
+            {**user, "id": user_id_eff, "global_role": user.get("global_role", "user")},
+        )
         # ponytail: prime the in-process user cache so message
         # rendering doesn't need a late-auth round-trip for the
         # requester's own user (the common case in tests).
@@ -187,7 +257,10 @@ def make_session(mock_late_auth, tmp_db):
                 except sqlite3.OperationalError:
                     pass
             conn.execute("DELETE FROM channels WHERE created_by = ?", (u["id"],))
-            conn.execute("DELETE FROM users WHERE id = ?", (u["id"],))
+            try:
+                conn.execute("DELETE FROM users WHERE id = ?", (u["id"],))
+            except sqlite3.OperationalError:
+                pass
 
 
 @pytest.fixture

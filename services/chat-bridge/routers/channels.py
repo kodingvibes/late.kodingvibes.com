@@ -35,7 +35,7 @@ async def _late_auth_get(path: str) -> dict | list | None:
 
 @router.get("/api/chat/channels")
 async def list_channels_route(session: dict = Depends(get_session_user)):
-    channels = list_channels(session["user_id"])
+    channels = list_channels(session["user_id"], global_role=session.get("global_role", "user"))
     for ch in channels:
         if ch["channel_type"] == "voice":
             ch["voice_participants"] = voice_rooms.participant_count(ch["id"])

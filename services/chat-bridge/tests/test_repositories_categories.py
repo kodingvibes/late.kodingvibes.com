@@ -49,8 +49,8 @@ def test_delete_category():
 def test_delete_category_sets_channels_null():
     cat = create_category("With Channels")
     from repositories.channels import create_channel, update_channel, get_channel
-    from repositories.users import upsert_user
-    user = upsert_user("sub-cat-del", "cat@example.com", "Cat")
+    from tests.conftest import _create_test_user  # type: ignore
+    user = _create_test_user("sub-cat-del", "cat@example.com", "Cat")
     ch = create_channel("#cat-channel", "In category", True, user["id"])
     update_channel(ch["id"], {"category_id": cat["id"]})
     delete_category(cat["id"])

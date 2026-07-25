@@ -4,7 +4,7 @@ import time
 import pytest
 from notes_store import init_table, insert_note, get_note
 from core.db import get_db
-from repositories.users import upsert_user
+from tests.conftest import _create_test_user  # type: ignore
 
 
 @pytest.fixture
@@ -12,7 +12,7 @@ def conn():
     c = get_db()
     init_table(c)
     now = int(time.time())
-    user = upsert_user("notes-test-user", "notes@example.com", "Notes User")
+    user = _create_test_user("notes-test-user", "notes@example.com", "Notes User")
     c.execute("INSERT INTO channels (name, description, is_public, created_at, channel_type) VALUES (?, ?, 1, ?, 'text')",
               ("#notes-test", "Notes test", now))
     ch_id = c.execute("SELECT id FROM channels WHERE name = ?", ("#notes-test",)).fetchone()["id"]

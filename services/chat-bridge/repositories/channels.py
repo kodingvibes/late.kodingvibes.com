@@ -3,24 +3,13 @@ from core.db import db
 from services.broadcaster import ws_manager
 
 
-def list_channels(user_id: int) -> list[dict]:
+def list_channels(user_id: int, global_role: str = "user") -> list[dict]:
     with db() as conn:
-        conn.execute("UPDATE users SET last_seen = ? WHERE id = ?", (int(time.time()), user_id))
-        # Ponytail: every user belongs to every channel. The previous
-        # version filtered by membership OR is_public, which left users
-        # unable to see channels they hadn't been invited to and, when
-        # the frontend auto-selected one, getting 403 on /messages. Now
-        # we return every channel as joined=True.
+        # ponytail: last_seen lives in late-auth now, not here.
         # Global super_admin / admin still get admin on every channel.
-        # Column list spelled out: SELECT c.* would silently widen
-        # whenever a migration adds a column, which has burned this
-        # codebase before (last_message_*, channel_type, position...).
-        # Explicit columns force this query to keep up with the schema
-        # on purpose, not by accident.
-        is_global_admin = conn.execute(
-            "SELECT 1 AS is_global_admin FROM users WHERE id = ? AND global_role IN ('super_admin', 'admin')",
-            (user_id,),
-        ).fetchone() is not None
+        # The role comes from the validated session (not a local
+        # users table — that table is gone).
+        is_global_admin = global_role in ("super_admin", "admin")
         rows = conn.execute("""
             SELECT c.id, c.name, c.description, c.is_public, c.created_by, c.created_at,
                    c.channel_type, c.category_id, c.position,
@@ -103,17 +92,18 @@ def create_channel(name: str, description: str | None, is_public: bool, created_
             (name, description, 1 if is_public else 0, created_by, now, channel_type),
         )
         channel_id = cur.lastrowid
-        # ponytail: every user belongs to every channel. The creator
-        # gets admin on this one (still the only way to mint admin
-        # roles); everyone else gets a plain row so they can read
-        # and write immediately without a join step.
-        all_users = conn.execute("SELECT id FROM users").fetchall()
-        for u in all_users:
-            role = "admin" if u["id"] == created_by else None
-            conn.execute(
-                "INSERT OR IGNORE INTO channel_members (channel_id, user_id, joined_at, role) VALUES (?, ?, ?, ?)",
-                (channel_id, u["id"], now, role),
-            )
+        # ponytail: the local users table is gone in production.
+        # The chat-bridge only knows about the creator at insert
+        # time, so we add them to channel_members and that's it.
+        # The cross-join with every other user used to live here;
+        # it was replaced by a one-time `INSERT OR IGNORE` on
+        # startup, also gone now. Voice channels stay public so
+        # any authenticated user joins on demand.
+        creator_role = "admin" if created_by is not None else None
+        conn.execute(
+            "INSERT OR IGNORE INTO channel_members (channel_id, user_id, joined_at, role) VALUES (?, ?, ?, ?)",
+            (channel_id, created_by, now, creator_role),
+        )
     return {"id": channel_id, "name": name}
 
 

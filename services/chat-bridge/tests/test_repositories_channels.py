@@ -37,7 +37,7 @@ def test_get_channel(consume_admin_slot, make_session):
 
 def test_list_channels(consume_admin_slot, make_session):
     _, user = make_session()
-    chans = list_channels(user["id"])
+    chans = list_channels(user["id"], global_role="user")
     names = [c["name"] for c in chans]
     assert "#lobby" in names
     assert "#random" in names
@@ -51,7 +51,7 @@ def test_list_channels(consume_admin_slot, make_session):
 
 def test_list_channels_includes_last_message(consume_admin_slot, make_session):
     _, user = make_session()
-    chans = list_channels(user["id"])
+    chans = list_channels(user["id"], global_role="user")
     for c in chans:
         assert "last_message" in c
 
@@ -63,7 +63,7 @@ def test_list_channels_includes_public_unjoined(consume_admin_slot, make_session
     _, user = make_session()
     _, other = make_session(sub="other-sub", email="other@example.com", name="Other")
     create_channel("#discoverable", "Public", True, other["id"])
-    chans = list_channels(user["id"])
+    chans = list_channels(user["id"], global_role="user")
     by_name = {c["name"]: c for c in chans}
     assert "#discoverable" in by_name
     assert by_name["#discoverable"]["joined"] is True
@@ -87,7 +87,7 @@ def test_super_admin_sees_admin_role_on_every_channel(consume_admin_slot, make_s
     _, user = make_session(user_id=admin_id, sub="admin-sub", email="admin@x.com", name="Admin")
     _, other = make_session(sub="other2-sub", email="other2@example.com", name="Other2")
     create_channel("#otherplace", "Other's", True, other["id"])
-    chans = list_channels(user["id"])
+    chans = list_channels(user["id"], global_role="super_admin")
     by_name = {c["name"]: c for c in chans}
     for name in ("#lobby", "#random", "#dev", "#infra"):
         assert by_name[name]["my_role"] == "admin"

@@ -3,12 +3,12 @@ import pytest
 from core.db import db
 from repositories.attachments import create_attachment, get_attachment, get_attachment_meta, get_attachments_meta_bulk, delete_expired
 from repositories.channels import create_channel
-from repositories.users import upsert_user
+from tests.conftest import _create_test_user  # type: ignore
 
 
 @pytest.fixture
 def user_and_channel():
-    user = upsert_user("att-test-user", "att@example.com", "Att User")
+    user = _create_test_user("att-test-user", "att@example.com", "Att User")
     ch = create_channel("#attachments", "Attachments test", True, user["id"])
     return user, ch
 
