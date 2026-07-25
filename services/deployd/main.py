@@ -50,6 +50,11 @@ REPOS = {
         "branch": "main",
         "deploy": "chat_service",
     },
+    "late-auth-service": {
+        "path": "/root/late-auth-service",
+        "branch": "main",
+        "deploy": "auth_service",
+    },
 }
 
 SHELL_DIR = "/root/late.kodingvibes.com"
@@ -211,6 +216,37 @@ def deploy_chat_service(repo_path: str, log: list[str]) -> int:
     return rc
 
 
+def deploy_auth_service(repo_path: str, log: list[str]) -> int:
+    # ponytail: late-auth-service is pure Python. The repo on
+    # disk is what the venv is bound to, so a git pull picks up
+    # the new code on the next uvicorn start. No build, no
+    # dependency install. Restart and probe /api/auth/healthz.
+    log.append(f"[{now_iso()}] restarting late-auth.service")
+    rc, out, err = run(["systemctl", "restart", "late-auth"])
+    log.append(out.rstrip())
+    if err:
+        log.append(f"stderr: {err.rstrip()}")
+    if rc != 0:
+        log.append(f"late-auth restart failed: {rc}")
+        return rc
+    log.append(f"[{now_iso()}] healthchecking late-auth /api/auth/healthz")
+    rc, out, err = run(
+        [
+            "bash",
+            "-c",
+            "for i in {1..30}; do "
+            "  curl -fsS http://127.0.0.1:9300/api/auth/healthz >/dev/null && exit 0; "
+            "  sleep 1; "
+            "done; exit 1",
+        ]
+    )
+    if rc != 0:
+        log.append(f"late-auth healthcheck failed: {err.rstrip()}")
+    else:
+        log.append("late-auth healthcheck passed")
+    return rc
+
+
 def healthcheck_chat_service(log: list[str]) -> int:
     """Verify the late-chat-service /healthz endpoint is reachable."""
     log.append(f"[{now_iso()}] healthchecking late-chat-service /healthz")
@@ -304,6 +340,7 @@ DEPLOYERS = {
     "micro_radio": deploy_micro_radio,
     "micro_chat": deploy_micro_chat,
     "chat_service": deploy_chat_service,
+    "auth_service": deploy_auth_service,
 }
 
 
