@@ -49,6 +49,11 @@ REPOS = {
         "branch": "main",
         "deploy": "micro_chat",
     },
+    "late-micro-dashboard": {
+        "path": "/root/late-micro-dashboard",
+        "branch": "main",
+        "deploy": "micro_dashboard",
+    },
     "late-chat-service": {
         "path": "/root/late-chat-service",
         "branch": "main",
@@ -340,10 +345,20 @@ def deploy_micro_chat(repo_path: str, log: list[str]) -> int:
     )
 
 
+def deploy_micro_dashboard(repo_path: str, log: list[str]) -> int:
+    return deploy_micro(
+        "dashboard",
+        repo_path,
+        "/root/late.kodingvibes.com/scripts/build-micro-dashboard.sh",
+        log,
+    )
+
+
 DEPLOYERS = {
     "shell_only": deploy_shell_only,
     "micro_radio": deploy_micro_radio,
     "micro_chat": deploy_micro_chat,
+    "micro_dashboard": deploy_micro_dashboard,
     "chat_service": deploy_chat_service,
     "auth_service": deploy_auth_service,
 }
