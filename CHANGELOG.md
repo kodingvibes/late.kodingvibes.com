@@ -1,3 +1,10 @@
+# [1.21.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.20.6...v1.21.0) (2026-07-25)
+
+
+### Features
+
+* **theme:** shared @late/theme package and rebalanced accent palette ([5e97812](https://github.com/kodingvibes/late.kodingvibes.com/commit/5e97812f697110b2a31f03738ea6d4039d2143ae))
+
 ## [1.20.6](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.20.5...v1.20.6) (2026-07-25)
 
 
