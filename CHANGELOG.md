@@ -1,3 +1,10 @@
+# [1.20.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.19.1...v1.20.0) (2026-07-25)
+
+
+### Features
+
+* **shell:** publish theme snapshot on window for the MFs ([f99f35b](https://github.com/kodingvibes/late.kodingvibes.com/commit/f99f35bb624394c812aee8e7d587d17d9d120428))
+
 ## [1.19.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.19.0...v1.19.1) (2026-07-25)
 
 
