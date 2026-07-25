@@ -226,22 +226,10 @@
     </div>
   </div>
 
-  <!-- Icecast live: per-mount listeners as horizontal bars -->
-  <div class="card" style="margin-bottom: 1rem;">
-    <h2>icecast · live listeners</h2>
-    {icecast_bars}
-  </div>
-
-  <!-- Streams catalog -->
-  <div class="card" style="margin-bottom: 1rem;">
-    <h2>streams catalog · 18 soma fm</h2>
-    <div class="scroll">
-      <table>
-        <thead><tr><th>mount</th><th>label</th><th>listening now</th></tr></thead>
-        <tbody>{stream_rows}</tbody>
-      </table>
-    </div>
-  </div>
+  <!-- Streams catalog and the live icecast bars were both
+       dropped from the dashboard. The streams themselves
+       are still served by the relay pipeline; this view is
+       for system health, not audience metrics. -->
 
   <!-- Recent deploys -->
   <div class="card" style="margin-bottom: 1rem;">

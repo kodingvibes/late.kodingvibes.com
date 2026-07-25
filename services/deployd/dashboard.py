@@ -351,13 +351,6 @@ async def g_icecast() -> dict:
     return {"ok": True, "sources": out, "total_listeners": total}
 
 
-async def g_streams_static() -> list[dict]:
-    """The 18 SomaFM mounts. Always returns, even if icecast is down."""
-    return [
-        {"mount": m, "label": label} for m, label in STREAMS
-    ]
-
-
 async def g_recent_deploys(limit: int = 10) -> list[dict]:
     """Tail the latest N log files. Summary only — last line tells ok/fail."""
     def _scan() -> list[dict]:
@@ -447,7 +440,6 @@ async def gather_all() -> dict:
         ("services", g_service_health),
         ("docker", g_docker),
         ("icecast", g_icecast),
-        ("streams", g_streams_static),
         ("deploys", g_recent_deploys),
         ("db", g_db_metrics),
     ]
@@ -557,7 +549,6 @@ def render_dashboard_html(payload: dict) -> str:
     services = payload.get("services", {})
     docker = payload.get("docker", {})
     icecast = payload.get("icecast", {})
-    streams = payload.get("streams", [])
     deploys = payload.get("deploys", [])
     db = payload.get("db", {})
 
@@ -604,35 +595,10 @@ def render_dashboard_html(payload: dict) -> str:
         for c in containers
     )
 
-    # Icecast sources → per-mount horizontal bars.
-    # max_listeners caps the bar width. If we have 0 listeners
-    # everywhere, fall back to 1 so bars are at least visible.
-    icecast_sources = icecast.get("sources", []) if isinstance(icecast, dict) else []
-    max_listeners = max((s.get("listeners", 0) for s in icecast_sources), default=0)
-    if max_listeners <= 0:
-        max_listeners = 1
-    if icecast_sources:
-        # Sort by listeners desc so the busiest streams sit on top.
-        ordered = sorted(icecast_sources, key=lambda s: s.get("listeners", 0), reverse=True)
-        icecast_bars = "\n".join(
-            f'<div class="row" style="margin-top: {i and ".5rem" or "0"};">'
-            f'<span class="label">/{escape(s["mount"])}</span>'
-            f'<span class="count">{s.get("listeners", 0)}</span>'
-            f'<span class="bar"><span style="width: {int(s.get("listeners", 0) * 100 / max_listeners)}%;"></span></span>'
-            f'</div>'
-            for i, s in enumerate(ordered)
-        )
-    else:
-        icecast_bars = '<p class="muted" style="margin: 0; font-size: .8125rem;">icecast down or empty</p>'
-
-    # Streams catalog with live listener lookup by mount.
-    by_mount = {s.get("mount"): s.get("listeners", 0) for s in icecast_sources}
-    stream_rows = "\n".join(
-        f'<tr><td class="px-3 py-1.5 text-slate-200 font-mono text-xs">/{escape(s["mount"])}</td>'
-        f'<td class="px-3 py-1.5 text-slate-400 text-xs">{escape(s["label"])}</td>'
-        f'<td class="px-3 py-1.5 text-slate-300 text-xs tabular-nums">{by_mount.get(s["mount"], 0)}</td></tr>'
-        for s in streams
-    )
+    # Icecast: we keep the healthcheck (icecast.ok drives the
+    # overall pill) but no longer render per-mount bars or a
+    # streams catalog — that view belongs to the radio
+    # frontend, not the system dashboard.
 
     # Deploys table
     deploy_rows = "\n".join(
@@ -715,8 +681,6 @@ def render_dashboard_html(payload: dict) -> str:
         container_rows=container_rows or '<tr><td colspan="4" class="px-3 py-2 text-slate-500 text-xs">no containers</td></tr>',
         container_count=len(containers),
         container_s=container_s,
-        icecast_bars=icecast_bars,
-        stream_rows=stream_rows,
         deploy_rows=deploy_rows or '<tr><td colspan="4" class="px-3 py-2 text-slate-500 text-xs">no deploys</td></tr>',
         auth_db_size=human_bytes(auth_db.get("bytes", 0)),
         auth_users=auth_counts.get("users", "—"),
