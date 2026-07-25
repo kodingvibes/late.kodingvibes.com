@@ -39,3 +39,4 @@ late-web-ui/vite.config.d.ts
 # Local dumps of user chat content (scripts/dump_chat_room.sh); keep off git.
 chat_dumps/
 services/chat-bridge/.coverage
+services/chat-bridge/.venv/
