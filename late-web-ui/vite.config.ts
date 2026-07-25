@@ -9,7 +9,7 @@ interface LatestJson {
   name?: string;
 }
 
-function readLatestVersion(name: "radio" | "chat"): string {
+function readLatestVersion(name: "radio" | "chat" | "dashboard"): string {
   try {
     const raw = fs.readFileSync(`/var/www/html/micro/${name}/latest.json`, "utf8");
     const parsed = JSON.parse(raw) as LatestJson;
@@ -21,9 +21,10 @@ function readLatestVersion(name: "radio" | "chat"): string {
 
 // ponytail: microfront URLs include a ?v=<version> cache-bust query so Safari
 // (and any other immutable-cache browser) treats each deploy as a distinct
-// asset. The server symlink at /micro/{radio,chat}/latest/ still swaps the
-// underlying file; the query string only forces a fresh fetch after the shell
-// rebuilds. Nginx ignores query strings when serving static files.
+// asset. The server symlink at /micro/{radio,chat,dashboard}/latest/ still
+// swaps the underlying file; the query string only forces a fresh fetch
+// after the shell rebuilds. Nginx ignores query strings when serving
+// static files.
 const microfrontsPlugin: Plugin = {
   name: "late-microfronts",
   transformIndexHtml: {
@@ -32,15 +33,20 @@ const microfrontsPlugin: Plugin = {
       if (!ctx.filename.endsWith("index.html")) return html;
       const radioV = readLatestVersion("radio");
       const chatV  = readLatestVersion("chat");
+      const dashV   = readLatestVersion("dashboard");
       const radioBase = "/micro/radio/latest";
       const chatBase  = "/micro/chat/latest";
+      const dashBase   = "/micro/dashboard/latest";
       const radioQ = radioV ? `?v=${encodeURIComponent(radioV)}` : "";
       const chatQ  = chatV  ? `?v=${encodeURIComponent(chatV)}`  : "";
+      const dashQ   = dashV  ? `?v=${encodeURIComponent(dashV)}`   : "";
       const tags = [
         `<link rel="stylesheet" href="${radioBase}/style.css${radioQ}">`,
         `<link rel="stylesheet" href="${chatBase}/style.css${chatQ}">`,
+        `<link rel="stylesheet" href="${dashBase}/style.css${dashQ}">`,
         `<script type="module" src="${radioBase}/entry.js${radioQ}"></script>`,
         `<script type="module" src="${chatBase}/entry.js${chatQ}"></script>`,
+        `<script type="module" src="${dashBase}/entry.js${dashQ}"></script>`,
       ].join("\n    ");
       return html.replace("</body>", `    ${tags}\n  </body>`);
     },

@@ -5,20 +5,23 @@ import SiteHeader from "@/components/SiteHeader";
 import MiniPlayer from "@/audio/MiniPlayer";
 import { UpdateNotice } from "@/components/UpdateNotice";
 import { AppLoader } from "@/components/AppLoader";
+import { RequireAuth } from "@/components/RequireAuth";
 import useViewportHeight from "@/lib/use-viewport-height";
 
 // Each route renders a microfront slot. The actual UI lives in
-// /micro/{radio,chat}/latest/entry.js (see vite.config.ts microfrontsPlugin).
+// /micro/{radio,chat,dashboard}/latest/entry.js (see vite.config.ts microfrontsPlugin).
 const Icecast = lazy(() => import("@/pages/Icecast").then((m) => ({ default: m.Icecast })));
 const Irc     = lazy(() => import("@/pages/Irc").then((m) => ({ default: m.Irc })));
+const Dashboard = lazy(() => import("@/pages/Dashboard").then((m) => ({ default: m.Dashboard })));
 
 // ponytail: a micro might still be downloading on first navigation. The
 // shell has no signal that the micro is "ready" beyond "did the React
 // tree mount inside the slot?" — but the slot itself is just a div that
 // the micro replaces wholesale. So we probe the window globals
-// (window.RadioEngine / window.ChatEngine) and show the loader until
-// the right one is present. The micro's entry.ts registers these on
-// execution, so this fires as soon as the bundle parses.
+// (window.RadioEngine / window.ChatEngine / window.DashboardEngine)
+// and show the loader until the right one is present. The micro's
+// entry.ts registers these on execution, so this fires as soon as the
+// bundle parses.
 function MicroLoader() {
   const loc = useLocation();
   const [ready, setReady] = useState(() => microReady(loc.pathname));
@@ -45,6 +48,7 @@ function microReady(pathname: string): boolean {
       (window as unknown as { ChatEngine?: unknown }).ChatEngine &&
         (window as unknown as { LateSession?: unknown }).LateSession,
     );
+  if (pathname === "/dashboard") return Boolean(window.DashboardEngine);
   return true;
 }
 
@@ -71,6 +75,7 @@ export function App() {
           <Route path="/" element={<Home />} />
           <Route path="/icecast" element={<><Icecast /><MicroLoader /></>} />
           <Route path="/irc" element={<><Irc /><MicroLoader /></>} />
+          <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
         </Routes>
       </Suspense>
       {/* ponytail: MiniPlayer is global, outside the router. It subscribes

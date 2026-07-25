@@ -14,6 +14,8 @@ export interface LateSessionAPI {
 declare global {
   interface Window {
     LateSession?: LateSessionAPI;
+    DashboardEngine?: { version: string };
+    __lateMicroDashboardMount?: () => void;
   }
 }
 
