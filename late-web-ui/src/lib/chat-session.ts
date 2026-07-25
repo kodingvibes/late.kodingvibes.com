@@ -1,6 +1,11 @@
 // Chat session lives in the shell. The micro-chat bundle reads/writes
 // only through window.LateSession (installed by Irc.tsx). It never
 // touches localStorage for auth keys.
+//
+// Auth endpoints live in late-auth-service. The shell exchanges a JWT
+// against /api/auth/exchange, validates the saved session with
+// /api/auth/me, and the MF calls other services (chat, etc.) which
+// themselves validate the same bearer token against late-auth.
 
 const SESSION_KEY = "late.session";
 const LEGACY_KEY = "chat.session";
@@ -63,7 +68,7 @@ export function redirectToSso() {
 }
 
 export async function exchangeToken(token: string): Promise<LateSession> {
-  const res = await fetch("/api/chat/exchange", {
+  const res = await fetch("/api/auth/exchange", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ token }),
@@ -76,12 +81,22 @@ export async function exchangeToken(token: string): Promise<LateSession> {
 }
 
 export async function validateSession(): Promise<LateSession> {
-  const me = await api<LateUser>("/api/chat/me");
+  const me = await api<LateUser>("/api/auth/me");
   const cur = getSavedSession();
   if (!cur) throw new Error("no session");
   const next: LateSession = { ...cur, user: me };
   saveSession(next);
   return next;
+}
+
+export async function serverLogout(): Promise<void> {
+  // ponytail: best-effort server-side invalidation. The shell still
+  // clears localStorage and reloads even if the network call fails.
+  try {
+    await api<void>("/api/auth/logout", { method: "POST" });
+  } catch {
+    // ignore — local clear below is the user-facing source of truth
+  }
 }
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -125,7 +140,8 @@ export function installLateSession() {
     },
     ssoUrl: SSO_URL,
     api,
-    logout: () => {
+    logout: async () => {
+      await serverLogout();
       clearSession();
       window.location.href = "/irc?logout=1";
     },
