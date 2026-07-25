@@ -1,3 +1,10 @@
+# [1.17.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.16.0...v1.17.0) (2026-07-25)
+
+
+### Features
+
+* **deployd:** per-second gauge tick + sub-hour ranges ([d1423bf](https://github.com/kodingvibes/late.kodingvibes.com/commit/d1423bf808002013ec5693dc6ca186a11d387477))
+
 # [1.16.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.15.0...v1.16.0) (2026-07-25)
 
 
