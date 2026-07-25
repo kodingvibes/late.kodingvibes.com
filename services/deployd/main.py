@@ -195,7 +195,7 @@ def reload_nginx(log: list[str]) -> int:
 
 CHAT_BRIDGE_RESTART_SCRIPT = os.environ.get(
     "CHAT_BRIDGE_RESTART_SCRIPT",
-    "/root/late.kodingvibes.com/scripts/restart-chat-bridge.sh",
+    "/root/late.kodingvibes.com/scripts/restart-chat-bridge-docker.sh",
 )
 
 
@@ -211,14 +211,14 @@ def restart_chat_bridge(log: list[str]) -> int:
 
 
 def healthcheck_chat_bridge(log: list[str]) -> int:
-    """Verify the unfurl endpoint (and therefore the whole app) is reachable."""
-    log.append(f"[{now_iso()}] healthchecking chat-bridge /api/chat/unfurl")
+    """Verify the chat-bridge /healthz endpoint is reachable."""
+    log.append(f"[{now_iso()}] healthchecking chat-bridge /healthz")
     rc, out, err = run(
         [
             "bash",
             "-c",
             "for i in {1..30}; do "
-            "  curl -fsS http://127.0.0.1:9100/api/chat/unfurl?url=https://example.com >/dev/null && exit 0; "
+            "  curl -fsS http://127.0.0.1:9100/healthz >/dev/null && exit 0; "
             "  sleep 1; "
             "done; exit 1",
         ]
