@@ -4,6 +4,7 @@ import time
 import pytest
 from notes_store import init_table, insert_note, get_note
 from core.db import get_db
+from repositories.users import upsert_user
 
 
 @pytest.fixture
@@ -11,14 +12,12 @@ def conn():
     c = get_db()
     init_table(c)
     now = int(time.time())
-    c.execute("INSERT INTO users (supabase_sub, email, name, display_name, created_at, last_seen) VALUES (?, ?, ?, ?, ?, ?)",
-              ("notes-test-user", "notes@example.com", "Notes User", "Notes User", now, now))
-    user_id = c.execute("SELECT id FROM users WHERE supabase_sub = ?", ("notes-test-user",)).fetchone()["id"]
+    user = upsert_user("notes-test-user", "notes@example.com", "Notes User")
     c.execute("INSERT INTO channels (name, description, is_public, created_at, channel_type) VALUES (?, ?, 1, ?, 'text')",
               ("#notes-test", "Notes test", now))
     ch_id = c.execute("SELECT id FROM channels WHERE name = ?", ("#notes-test",)).fetchone()["id"]
     c.execute("INSERT INTO channel_members (channel_id, user_id, joined_at, role) VALUES (?, ?, ?, 'admin')",
-              (ch_id, user_id, now))
+              (ch_id, user["id"], now))
     c.commit()
     yield c
     c.close()

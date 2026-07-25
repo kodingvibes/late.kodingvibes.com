@@ -54,16 +54,22 @@ async def client() -> AsyncClient:
 
 
 @pytest.fixture
-def consume_admin_slot(tmp_db):
+def consume_admin_slot(tmp_db, mock_late_auth):
     """Create a dummy user first so user_id=1 gets admin from migration.
-    Subsequent users (id>=2) will NOT have admin role by default."""
+    Subsequent users (id>=2) will NOT have admin role by default.
+    Also registers the admin user with the late-auth mock so the
+    chat-bridge code path can return their session."""
     from repositories.users import upsert_user
-    upsert_user("__admin_consumer__", "admin-consumer@example.com", "Admin Consumer")
+    admin = upsert_user("__admin_consumer__", "admin-consumer@example.com", "Admin Consumer")
+    assert admin["id"] == 1, f"consume_admin_slot must run first; got id={admin['id']}"
+    admin_session = {**admin, "global_role": "super_admin"}
+    mock_late_auth.register("consume-admin-slot-token", admin_session)
+    return admin["id"]
 
 
 @pytest.fixture(autouse=True)
 def mock_late_auth():
-    """Mock the call to late-auth /api/auth/validate.
+    """Mock every late-auth /api/auth/* call the chat-bridge makes.
 
     The mock is dynamic: any session_id is accepted, and the user
     returned comes from a test-managed dict keyed by session_id.
@@ -74,26 +80,75 @@ def mock_late_auth():
     import respx
     from core.config import LATE_AUTH_URL
 
-    state = {"sessions": {}}
+    state = {"sessions": {}, "next_id": [1], "users": {}}
+
+    def get_user_for_email(email: str) -> dict | None:
+        for u in state["users"].values():
+            if u.get("email", "").lower() == email.lower():
+                return u
+        return None
 
     with respx.mock(assert_all_called=False) as respx_mock:
-        def handler(request):
+        def validate_handler(request):
             sid = request.headers.get("X-Session-Id")
             user = state["sessions"].get(sid)
             if not user:
                 return httpx.Response(401, json={"detail": "Invalid or expired session"})
-            # late-auth returns `id`; chat-bridge reads `user_id` from
-            # its session. Mirror the production alias here too.
             return httpx.Response(200, json={
                 "valid": True,
                 "user": {**user, "user_id": user.get("id")},
             })
 
-        respx_mock.get(f"{LATE_AUTH_URL}/api/auth/validate").mock(side_effect=handler)
+        def search_handler(request):
+            q = (request.url.params.get("q") or "").lower()
+            rows = [
+                {**u, "id": u["id"], "user_id": u["id"]}
+                for u in state["users"].values()
+                if q in u.get("display_name", "").lower() or q in u.get("email", "").lower()
+            ][: int(request.url.params.get("limit", 10))]
+            return httpx.Response(200, json=rows)
+
+        def by_email_handler(request):
+            email = request.url.params.get("email", "").lower()
+            u = get_user_for_email(email)
+            if not u:
+                return httpx.Response(404, json={"detail": "user not found"})
+            return httpx.Response(200, json={"user": {**u, "id": u["id"]}})
+
+        def by_id_handler(request):
+            uid = int(request.url.path.rstrip("/").rsplit("/", 1)[-1])
+            u = state["users"].get(uid)
+            if not u:
+                return httpx.Response(404, json={"detail": "user not found"})
+            return httpx.Response(200, json={**u, "id": u["id"]})
+
+        def batch_handler(request):
+            ids = [int(x) for x in request.url.params.getlist("id")]
+            rows = [state["users"][i] for i in ids if i in state["users"]]
+            return httpx.Response(200, json={"users": [{**u, "id": u["id"]} for u in rows]})
+
+        respx_mock.get(f"{LATE_AUTH_URL}/api/auth/validate").mock(side_effect=validate_handler)
+        respx_mock.get(f"{LATE_AUTH_URL}/api/auth/users/search").mock(side_effect=search_handler)
+        respx_mock.get(f"{LATE_AUTH_URL}/api/auth/users/by-email").mock(side_effect=by_email_handler)
+        # The /api/auth/users/{id} route is dynamic; respx supports
+        # a regex pattern via `url__regex` in newer versions but to
+        # keep the test dep minimal, register the batch endpoint and
+        # a wildcard for the per-id path.
+        respx_mock.get(url__regex=r".*/api/auth/users/\d+$").mock(side_effect=by_id_handler)
+        respx_mock.get(f"{LATE_AUTH_URL}/api/auth/users/batch").mock(side_effect=batch_handler)
 
         class _Mock:
             def register(self, session_id: str, user: dict):
                 state["sessions"][session_id] = user
+                # Mirror into the user directory so search/by-email
+                # lookups against this user work too.
+                if "id" in user:
+                    state["users"][user["id"]] = user
+
+            def allocate_id(self) -> int:
+                n = state["next_id"][0]
+                state["next_id"][0] += 1
+                return n
 
         yield _Mock()
 
@@ -102,23 +157,20 @@ def mock_late_auth():
 def make_session(mock_late_auth, tmp_db):
     created = []
 
-    def _make(sub="test-sub", email="test@example.com", name="Test User"):
-        from repositories.users import upsert_user
+    def _make(sub="test-sub", email="test@example.com", name="Test User", user_id=None):
         from core.auth import generate_session_id
+        from repositories.users import upsert_user
         user = upsert_user(sub, email, name)
+        user_id_eff = user["id"] if user_id is None else user_id
         session_id = generate_session_id()
-        # chat-bridge still keeps a local users mirror so the rest of
-        # the code can read display_name without a round-trip. Session
-        # validation, however, now goes through late-auth — the mock
-        # above returns the user when chat-bridge calls /api/auth/validate.
-        mock_late_auth.register(session_id, user)
-        created.append(user)
-        return session_id, user
+        mock_late_auth.register(session_id, {**user, "id": user_id_eff, "global_role": user.get("global_role", "user")})
+        created.append({**user, "id": user_id_eff})
+        return session_id, {**user, "id": user_id_eff}
 
     yield _make
     with db() as conn:
         for u in created:
-            for tbl in ("voice_notes", "reactions", "messages", "attachments", "channel_members", "sessions"):
+            for tbl in ("voice_notes", "reactions", "messages", "attachments", "channel_members"):
                 try:
                     conn.execute(f"DELETE FROM {tbl} WHERE user_id = ?", (u["id"],))
                 except sqlite3.OperationalError:

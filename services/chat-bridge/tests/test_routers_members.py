@@ -18,8 +18,16 @@ class TestListMembers:
 
 
 class TestChangeRole:
-    async def test_change_role(self, client, auth_headers, consume_admin_slot, make_session):
-        headers, user = auth_headers
+    async def test_change_role(self, client, consume_admin_slot, make_session, mock_late_auth):
+        from core.auth import generate_session_id
+        from repositories.users import get_user_by_id
+        admin = get_user_by_id(consume_admin_slot)
+        # The change_role route checks global_role on the session
+        # (via late-auth). Re-register the admin with super_admin.
+        admin_session = {**admin, "global_role": "super_admin"}
+        admin_token = generate_session_id()
+        mock_late_auth.register(admin_token, admin_session)
+        headers = {"Authorization": f"Bearer {admin_token}"}
         _, target = make_session("sub-role-target", "target@example.com", "Target")
         ch = (await client.get("/api/chat/channels", headers=headers)).json()[0]
         r = await client.patch(f"/api/chat/channels/{ch['id']}/members/{target['id']}/role", json={"role": "mod"}, headers=headers)
@@ -42,8 +50,14 @@ class TestChangeRole:
         r = await client.patch(f"/api/chat/channels/{ch['id']}/members/{user2['id']}/role", json={"role": "mod"}, headers={"Authorization": f"Bearer {session1}"})
         assert r.status_code == 403
 
-    async def test_change_role_invalid(self, client, auth_headers, consume_admin_slot, make_session):
-        headers, user = auth_headers
+    async def test_change_role_invalid(self, client, consume_admin_slot, make_session, mock_late_auth):
+        from core.auth import generate_session_id
+        from repositories.users import get_user_by_id
+        admin = get_user_by_id(consume_admin_slot)
+        admin_session = {**admin, "global_role": "super_admin"}
+        admin_token = generate_session_id()
+        mock_late_auth.register(admin_token, admin_session)
+        headers = {"Authorization": f"Bearer {admin_token}"}
         _, target = make_session("sub-role-inv", "inv@example.com", "Inv")
         ch = (await client.get("/api/chat/channels", headers=headers)).json()[0]
         r = await client.patch(f"/api/chat/channels/{ch['id']}/members/{target['id']}/role", json={"role": "invalid"}, headers=headers)
@@ -51,8 +65,14 @@ class TestChangeRole:
 
 
 class TestChangeMute:
-    async def test_mute(self, client, auth_headers, consume_admin_slot, make_session):
-        headers, user = auth_headers
+    async def test_mute(self, client, consume_admin_slot, make_session, mock_late_auth):
+        from core.auth import generate_session_id
+        from repositories.users import get_user_by_id
+        admin = get_user_by_id(consume_admin_slot)
+        admin_session = {**admin, "global_role": "super_admin"}
+        admin_token = generate_session_id()
+        mock_late_auth.register(admin_token, admin_session)
+        headers = {"Authorization": f"Bearer {admin_token}"}
         _, target = make_session("sub-mute-target", "mute@example.com", "Mute")
         ch = (await client.get("/api/chat/channels", headers=headers)).json()[0]
         r = await client.patch(f"/api/chat/channels/{ch['id']}/members/{target['id']}/mute", json={"muted": True}, headers=headers)

@@ -72,11 +72,19 @@ def test_list_channels_includes_public_unjoined(consume_admin_slot, make_session
         assert by_name[name]["joined"] is True
 
 
-def test_super_admin_sees_admin_role_on_every_channel(consume_admin_slot, make_session):
+def test_super_admin_sees_admin_role_on_every_channel(consume_admin_slot, make_session, mock_late_auth):
     from core.db import db
-    _, user = make_session()
-    with db() as conn:
-        conn.execute("UPDATE users SET global_role = 'super_admin' WHERE id = ?", (user["id"],))
+    admin_id = consume_admin_slot
+    # The admin user is the one upsert_user inserted as id=1 by
+    # consume_admin_slot. Re-register that session with the
+    # super_admin global_role so list_channels returns admin.
+    admin_session = {
+        "id": admin_id, "supabase_sub": "__admin_consumer__",
+        "email": "admin-consumer@example.com", "name": "Admin Consumer",
+        "display_name": "admin-consumer", "global_role": "super_admin",
+    }
+    mock_late_auth.register("super-admin-token", admin_session)
+    _, user = make_session(user_id=admin_id, sub="admin-sub", email="admin@x.com", name="Admin")
     _, other = make_session(sub="other2-sub", email="other2@example.com", name="Other2")
     create_channel("#otherplace", "Other's", True, other["id"])
     chans = list_channels(user["id"])

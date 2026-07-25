@@ -2,8 +2,8 @@ import time
 import pytest
 from core.db import db
 from repositories.attachments import create_attachment, get_attachment, get_attachment_meta, get_attachments_meta_bulk, delete_expired
-from repositories.users import upsert_user
 from repositories.channels import create_channel
+from repositories.users import upsert_user
 
 
 @pytest.fixture

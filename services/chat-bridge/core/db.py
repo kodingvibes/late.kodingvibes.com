@@ -3,6 +3,14 @@ import time
 from contextlib import contextmanager
 from core.config import SQLITE_PATH
 
+# ponytail: chat-bridge keeps a local users + sessions table. The
+# actual source of truth is late-auth-service
+# (kodingvibes/late-auth-service), which validates every Bearer
+# token. chat-bridge trusts the user_id it gets from late-auth and
+# joins against its local cache to render `display_name` and `email`
+# on messages. The `users` table here is just a cache, populated
+# lazily when a user first interacts with the chat.
+
 def get_db():
     conn = sqlite3.connect(SQLITE_PATH)
     conn.row_factory = sqlite3.Row
@@ -10,6 +18,7 @@ def get_db():
     conn.execute("PRAGMA foreign_keys=ON")
     _run_migrations(conn)
     return conn
+
 
 def _run_migrations(conn):
     conn.executescript("""
@@ -116,6 +125,19 @@ def _run_migrations(conn):
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         );
         CREATE INDEX IF NOT EXISTS idx_message_reads_msg ON message_reads(message_id);
+        CREATE TABLE IF NOT EXISTS voice_notes (
+            id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            channel_id INTEGER NOT NULL,
+            duration_ms INTEGER NOT NULL,
+            amount INTEGER NOT NULL DEFAULT 50,
+            size_bytes INTEGER NOT NULL,
+            storage_path TEXT NOT NULL,
+            mime TEXT NOT NULL DEFAULT 'audio/webm',
+            created_at INTEGER NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE
+        );
     """)
     _run_idempotent_alter(conn, "channel_members", "role", "TEXT")
     _run_idempotent_alter(conn, "messages", "reply_to", "INTEGER REFERENCES messages(id) ON DELETE SET NULL")
@@ -160,11 +182,13 @@ def _run_migrations(conn):
         (int(time.time()),),
     )
 
+
 def _run_idempotent_alter(conn, table, column, col_type):
     try:
         conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
     except sqlite3.OperationalError:
         pass
+
 
 def _seed_categories(conn):
     now = int(time.time())
@@ -180,6 +204,7 @@ def _seed_categories(conn):
             "UPDATE channels SET category_id = ?, position = id WHERE category_id IS NULL AND (channel_type IS NULL OR channel_type = ?)",
             (cat_id, ch_type),
         )
+
 
 def _seed_channels(conn):
     now = int(time.time())
@@ -210,6 +235,7 @@ def _seed_channels(conn):
                 (vch_id, u["id"], now),
             )
     conn.commit()
+
 
 @contextmanager
 def db():

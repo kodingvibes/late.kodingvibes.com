@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
+import httpx
 from core.auth import get_session_user, get_channel_role, is_global_admin
+from core.config import LATE_AUTH_SECRET, LATE_AUTH_URL
 from schemas.chat import CreateChannelRequest, UpdateChannelRequest, InviteRequest
 from repositories.channels import list_channels, get_channel, create_channel, update_channel
 from repositories.receipts import mark_read
-from repositories.users import search_users
 from services.notifications import send_to_kv
 from services.voice_rooms import voice_rooms
 from services.broadcaster import ws_manager
@@ -12,6 +13,25 @@ import asyncio
 import time
 
 router = APIRouter()
+
+
+async def _late_auth_get(path: str) -> dict | list | None:
+    """Service-to-service call into late-auth. Returns the parsed JSON
+    body on 2xx, None on 4xx, or raises on 5xx (handled as "remote
+    error" so the caller can return a 502/503 to the user).
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.get(
+                f"{LATE_AUTH_URL}{path}",
+                headers={"Authorization": f"Bearer {LATE_AUTH_SECRET}"},
+                timeout=2.0,
+            )
+    except Exception:
+        return None
+    if r.status_code != 200:
+        return None
+    return r.json()
 
 @router.get("/api/chat/channels")
 async def list_channels_route(session: dict = Depends(get_session_user)):
@@ -79,13 +99,17 @@ async def leave_channel_route(channel_id: int, session: dict = Depends(get_sessi
     # stays so unread counts and the mute flag keep working. Frontend
     # has hidden the "Leave" button; this is here for old clients.
     return {"ok": True}
-
 @router.get("/api/chat/users")
 async def search_users_route(q: str, session: dict = Depends(get_session_user)):
-    q = q.strip().lower()
+    # ponytail: user search is owned by late-auth. chat-bridge
+    # proxies the query over loopback so the result matches the
+    # platform-wide directory, not a stale local mirror.
+    q = (q or "").strip().lower()
     if not q:
         return []
-    return search_users(q)
+    result = await _late_auth_get(f"/api/auth/users/search?q={q}")
+    return result if isinstance(result, list) else []
+
 
 @router.post("/api/chat/channels/{channel_id}/invite")
 async def invite_user(channel_id: int, req: InviteRequest, session: dict = Depends(get_session_user)):
@@ -99,24 +123,17 @@ async def invite_user(channel_id: int, req: InviteRequest, session: dict = Depen
     ch = get_channel(channel_id)
     if not ch:
         raise HTTPException(404, "Channel not found")
-    from repositories.users import get_user_by_id
-    with db() as conn:
-        # ponytail: only the columns this route actually reads (id,
-        # display_name). SELECT * would pull supabase_sub, last_seen,
-        # global_role, etc. for every invite — wasteful and a future
-        # leak vector if a sensitive column is ever added.
-        target = conn.execute(
-            "SELECT id, display_name FROM users WHERE email = ?",
-            (email,),
-        ).fetchone()
-        if not target:
-            raise HTTPException(404, "User not found")
+    # Look up the user by email via late-auth.
+    result = await _late_auth_get(f"/api/auth/users/by-email?email={email}")
+    if not result or not result.get("user"):
+        raise HTTPException(404, "User not found")
+    target = result["user"]
     asyncio.create_task(send_to_kv("channel.invited", {
         "channel_id": channel_id, "channel_name": ch["name"],
-        "user_id": target["id"], "display_name": target["display_name"],
+        "user_id": target["id"], "display_name": target.get("display_name", ""),
         "by": session["display_name"],
     }))
-    return {"ok": True, "user": {"id": target["id"], "display_name": target["display_name"]}}
+    return {"ok": True, "user": {"id": target["id"], "display_name": target.get("display_name", "")}}
 
 @router.post("/api/chat/channels/{channel_id}/read")
 async def mark_read(channel_id: int, message_id: int, session: dict = Depends(get_session_user)):

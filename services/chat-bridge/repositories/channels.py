@@ -17,10 +17,10 @@ def list_channels(user_id: int) -> list[dict]:
         # codebase before (last_message_*, channel_type, position...).
         # Explicit columns force this query to keep up with the schema
         # on purpose, not by accident.
-        global_admin = conn.execute(
+        is_global_admin = conn.execute(
             "SELECT 1 AS is_global_admin FROM users WHERE id = ? AND global_role IN ('super_admin', 'admin')",
             (user_id,),
-        ).fetchone()
+        ).fetchone() is not None
         rows = conn.execute("""
             SELECT c.id, c.name, c.description, c.is_public, c.created_by, c.created_at,
                    c.channel_type, c.category_id, c.position,
@@ -69,7 +69,7 @@ def list_channels(user_id: int) -> list[dict]:
                 "unread": unread,
                 # Global admins see admin on every channel, even ones
                 # where their per-channel role (if any) is just 'user'.
-                "my_role": "admin" if global_admin else (my_role_row["role"] if my_role_row else None),
+                "my_role": "admin" if is_global_admin else (my_role_row["role"] if my_role_row else None),
                 "last_message": {
                     "id": r["last_message_id"],
                     "content": r["last_message_content"],
