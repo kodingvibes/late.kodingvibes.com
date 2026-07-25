@@ -1,3 +1,10 @@
+# [1.18.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.17.0...v1.18.0) (2026-07-25)
+
+
+### Features
+
+* **shell:** theme system, user menu, profile page, /profile route ([b31e4af](https://github.com/kodingvibes/late.kodingvibes.com/commit/b31e4af5124543fe47df8f62a9419c1b06bb49c8))
+
 # [1.17.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.16.0...v1.17.0) (2026-07-25)
 
 
