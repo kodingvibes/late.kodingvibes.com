@@ -84,22 +84,23 @@ export default function SiteHeader() {
           >
             <MessageCircle className="w-4 h-4" />
             <span className="hidden sm:inline">Chat</span>
-            {onlineCount !== null && onlineCount > 0 && (
-              <span
-                className={`ml-1 text-[10px] tabular-nums font-semibold px-1.5 py-0.5 rounded-full ${
-                  isChat
-                    ? isLight
-                      ? "bg-accent/30 text-accent"
-                      : "bg-accent/30 text-accent"
-                    : isLight
-                    ? "bg-slate-200 text-slate-700"
-                    : "bg-slate-800 text-slate-200"
-                }`}
-                title={`${onlineCount} en línea`}
-              >
-                {onlineCount}
-              </span>
-            )}
+            {/* ponytail: appshell badge always shows the live
+             * count (0 included) so the user knows the chat is
+             * reachable, not silently offline. The MF's own
+             * Topbar gets a Users button without the count
+             * (the user wanted the count here, not in the MF). */}
+            <span
+              className={`ml-1 text-[10px] tabular-nums font-semibold px-1.5 py-0.5 rounded-full ${
+                isChat
+                  ? "bg-accent/30 text-accent"
+                  : isLight
+                  ? "bg-slate-200 text-slate-700"
+                  : "bg-slate-800 text-slate-200"
+              } ${onlineCount === null ? "opacity-50" : ""}`}
+              title={onlineCount === null ? "sin conexión" : `${onlineCount} en línea`}
+            >
+              {onlineCount ?? "—"}
+            </span>
           </Link>
 
           <UserMenu />
