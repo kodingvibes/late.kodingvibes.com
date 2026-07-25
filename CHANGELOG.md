@@ -1,3 +1,10 @@
+## [1.10.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.10.0...v1.10.1) (2026-07-25)
+
+
+### Bug Fixes
+
+* **deployd:** break the /dashboard ↔ /irc redirect loop ([25c0b22](https://github.com/kodingvibes/late.kodingvibes.com/commit/25c0b2200fc1a037c8f69f146f17decf5fd6a0c4))
+
 # [1.10.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.9.1...v1.10.0) (2026-07-25)
 
 
