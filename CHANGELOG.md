@@ -1,3 +1,10 @@
+## [1.10.2](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.10.1...v1.10.2) (2026-07-25)
+
+
+### Bug Fixes
+
+* **deployd:** neutral 'verifying' pill on the no-auth first paint ([3295b99](https://github.com/kodingvibes/late.kodingvibes.com/commit/3295b994ab358bde482f9d97002c42ff2cc12023))
+
 ## [1.10.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.10.0...v1.10.1) (2026-07-25)
 
 
