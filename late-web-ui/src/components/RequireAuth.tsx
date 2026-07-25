@@ -44,15 +44,21 @@ export function RequireAuth({ children, mountSlot }: RequireAuthProps) {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token");
     const logout = params.get("logout") === "1";
+    // ponytail: ?next=/path is the post-login destination.
+    // We only honor same-origin paths to avoid open-redirect
+    // attacks where a phishing page could bounce the user
+    // through SSO and then to evil.com.
+    const next = sanitizeNext(params.get("next"));
 
     if (token) {
       window.history.replaceState({}, "", window.location.pathname);
-      // We don't know which page the user came in on; ask the
-      // chat-session helper to do the exchange. The redirect
-      // target after exchange is the same page they came from.
       exchangeToken(token)
         .then((session) => {
           saveSession(session);
+          if (next) {
+            window.location.href = next;
+            return;
+          }
           setPhase("ready");
         })
         .catch((e) => {
@@ -76,7 +82,17 @@ export function RequireAuth({ children, mountSlot }: RequireAuthProps) {
     }
 
     validateSession()
-      .then(() => setPhase("ready"))
+      .then(() => {
+        if (next) {
+          // Already authenticated, jump straight to the next
+          // page. The path is intentionally not stripped from
+          // the URL — the target page handles the query
+          // (or ignores it).
+          window.location.href = next;
+          return;
+        }
+        setPhase("ready");
+      })
       .catch(() => {
         clearSession();
         setPhase("login");
@@ -113,4 +129,19 @@ export function RequireAuth({ children, mountSlot }: RequireAuthProps) {
   }
 
   return <>{children}</>;
+}
+
+/**
+ * Accept only same-origin paths starting with "/". Anything
+ * else (absolute URL, protocol-relative, javascript:, etc.)
+ * returns null so the caller can ignore it.
+ */
+function sanitizeNext(raw: string | null): string | null {
+  if (!raw) return null;
+  // Decode in case the SSO bridge sent an encoded URL.
+  let v: string;
+  try { v = decodeURIComponent(raw); } catch { return null; }
+  if (!v.startsWith("/")) return null;
+  if (v.startsWith("//")) return null;
+  return v;
 }
