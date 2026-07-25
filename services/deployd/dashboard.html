@@ -52,6 +52,7 @@
   }}
   .status-pill.ok {{ background: rgba(16,185,129,.1); color: var(--emerald); border: 1px solid rgba(16,185,129,.3); }}
   .status-pill.bad {{ background: rgba(244,63,94,.1); color: var(--rose); border: 1px solid rgba(244,63,94,.3); }}
+  .status-pill:empty, .status-pill:not(.ok):not(.bad) {{ background: var(--bg-soft); color: var(--muted); border: 1px solid var(--border); }}
   .grid {{ display: grid; gap: 1rem; }}
   .grid-2 {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
   .grid-3 {{ grid-template-columns: repeat(3, minmax(0, 1fr)); }}

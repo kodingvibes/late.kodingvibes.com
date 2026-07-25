@@ -483,11 +483,25 @@ def render_dashboard_html(payload: dict) -> str:
     db = payload.get("db", {})
 
     # Overall status: red if any service is not ok, otherwise green.
+    # ponytail: if the payload is empty (the unauthenticated
+    # first paint that the inline script is about to replace),
+    # the overall status is meaningless — show a neutral
+    # "verifying" pill so the user doesn't see a misleading
+    # "degraded" before the JS swap happens.
     services_ok = all(
         p.get("ok") for p in services.values() if isinstance(p, dict)
     )
-    overall_ok = services_ok and bool(icecast.get("ok"))
-    overall_label = "operational" if overall_ok else "degraded"
+    icecast_ok = bool(icecast.get("ok"))
+    is_empty = not services and not icecast.get("sources") and not db
+    overall_ok = services_ok and icecast_ok
+    if is_empty:
+        overall_label = "verifying"
+        overall_class = "text-slate-400"
+        overall_class_pill = ""
+    else:
+        overall_label = "operational" if overall_ok else "degraded"
+        overall_class = "text-emerald-400" if overall_ok else "text-rose-400"
+        overall_class_pill = "ok" if overall_ok else "bad"
 
     # Service health table rows
     service_rows = "\n".join(
@@ -543,7 +557,6 @@ def render_dashboard_html(payload: dict) -> str:
     chat_counts = chat_db.get("counts", {}) if isinstance(chat_db.get("counts"), dict) else {}
 
     template = DASHBOARD_TEMPLATE_PATH.read_text(encoding="utf-8")
-    overall_class_pill = "ok" if overall_ok else "bad"
     mem_bar_class = "warn" if mem.get("pct", 0) >= 85 else ""
     mem_bar_width = min(int(mem.get("pct", 0)), 100)
     disk_root_bar_class = "warn" if disk_root.get("pct", 0) >= 85 else ""
@@ -552,11 +565,12 @@ def render_dashboard_html(payload: dict) -> str:
     disk_data_bar_width = min(int(disk_data.get("pct", 0)), 100)
     container_s = "" if len(containers) == 1 else "s"
     listener_s = "" if (icecast.get("total_listeners", 0) if isinstance(icecast, dict) else 0) == 1 else "s"
+    overall_dot = "⏳" if is_empty else ("🟢" if overall_ok else "🔴")
     return template.format(
         overall_label=overall_label,
-        overall_class="text-emerald-400" if overall_ok else "text-rose-400",
+        overall_class=overall_class,
         overall_class_pill=overall_class_pill,
-        overall_dot="🟢" if overall_ok else "🔴",
+        overall_dot=overall_dot,
         service_rows=service_rows,
         loadavg=escape(system.get("loadavg", "—")),
         mem_pct=mem.get("pct", 0),
