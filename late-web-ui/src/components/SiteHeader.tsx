@@ -33,8 +33,8 @@ export default function SiteHeader() {
     ? "text-slate-500 hover:text-slate-900 hover:bg-slate-200"
     : "text-slate-400 hover:text-slate-100 hover:bg-slate-800";
   const activeLink = isLight
-    ? "bg-indigo-100 text-indigo-700"
-    : "bg-indigo-500/15 text-indigo-300";
+    ? "bg-accent/15 text-accent"
+    : "bg-accent/15 text-accent";
 
   return (
     <header
@@ -88,8 +88,8 @@ export default function SiteHeader() {
                 className={`ml-1 text-[10px] tabular-nums font-semibold px-1.5 py-0.5 rounded-full ${
                   isChat
                     ? isLight
-                      ? "bg-indigo-200 text-indigo-800"
-                      : "bg-indigo-500/30 text-indigo-100"
+                      ? "bg-accent/30 text-accent"
+                      : "bg-accent/30 text-accent"
                     : isLight
                     ? "bg-slate-200 text-slate-700"
                     : "bg-slate-800 text-slate-200"

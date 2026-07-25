@@ -416,27 +416,119 @@ input[type="range"] {
 }
 
 /* ponytail: the shell is dark-first historically, but the theme
- * provider can flip to light mode. We override the most common
- * Tailwind color utilities at the :root level so the rest of the
- * components keep using slate-950, slate-900, etc., and look
- * right in both modes. Only the shell, the late micro-fronts, and
- * the chat MF (which already uses the same dark palette) are
- * affected. */
+ * provider can flip to light mode. We override the utility
+ * classes that are used in the shell components at the
+ * `.theme-light` root level so the same Tailwind class names
+ * (`bg-slate-950`, `text-slate-100`, etc.) render in the
+ * correct color for the active mode.
+ *
+ * Tailwind 4 inlines the actual color value into the utility
+ * class, so we cannot rely on overriding the underlying
+ * CSS variables at runtime. The trick is to redeclare the
+ * utility class ourselves inside `.theme-light` — CSS
+ * specificity wins because the selector is more specific
+ * (`:root.theme-light` vs. just `.bg-slate-950`). */
 :root.theme-light {
   color-scheme: light;
-  --color-slate-900: #ffffff;
-  --color-slate-950: #f8fafc;
-  --color-slate-800: #e2e8f0;
-  --color-slate-700: #cbd5e1;
-  --color-slate-600: #94a3b8;
-  --color-slate-500: #64748b;
-  --color-slate-400: #475569;
-  --color-slate-300: #334155;
-  --color-slate-200: #1e293b;
-  --color-slate-100: #0f172a;
-  --color-slate-50: #020617;
 }
 
+/* Accent primitives: these read from the runtime-set CSS
+ * variables on :root (set by ThemeProvider whenever the user
+ * picks a new accent). All "primary action" surfaces in the
+ * shell use one of these classes instead of bg-indigo-500, so
+ * the chosen accent actually shows up. */
+.bg-accent { background-color: var(--accent-primary, #6366f1); }
+.bg-accent-soft { background-color: var(--accent-soft, #818cf8); }
+.bg-accent-ring { background-color: var(--accent-ring, #a5b4fc); }
+.text-accent { color: var(--accent-primary, #6366f1); }
+.text-accent-soft { color: var(--accent-soft, #818cf8); }
+.ring-accent { box-shadow: 0 0 0 3px var(--accent-ring, #a5b4fc); }
+.border-accent { border-color: var(--accent-primary, #6366f1); }
+.hover\:bg-accent-soft:hover { background-color: var(--accent-soft, #818cf8); }
+.hover\:text-accent-soft:hover { color: var(--accent-soft, #818cf8); }
+.focus\:border-accent:focus { border-color: var(--accent-primary, #6366f1); }
+
+/* Translucent accent (used for the active nav pill). */
+.bg-accent\/15 { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 15%, transparent); }
+.bg-accent\/20 { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 20%, transparent); }
+.bg-accent\/30 { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 30%, transparent); }
+.text-accent\/80 { color: color-mix(in srgb, var(--accent-primary, #6366f1) 80%, transparent); }
+.text-accent\/90 { color: color-mix(in srgb, var(--accent-primary, #6366f1) 90%, transparent); }
+.ring-accent\/30 { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary, #6366f1) 30%, transparent); }
+
+/* Backgrounds. slate-950 is the page; slate-900 / slate-800 are
+ * card surfaces; slate-50 is the lightest accent. */
+:root.theme-light .bg-slate-950 { background-color: #f8fafc; }
+:root.theme-light .bg-slate-900 { background-color: #ffffff; }
+:root.theme-light .bg-slate-800 { background-color: #e2e8f0; }
+:root.theme-light .bg-slate-700 { background-color: #cbd5e1; }
+:root.theme-light .bg-slate-600 { background-color: #94a3b8; }
+:root.theme-light .bg-slate-500 { background-color: #64748b; }
+:root.theme-light .bg-slate-200 { background-color: #cbd5e1; }
+:root.theme-light .bg-slate-50  { background-color: #f1f5f9; }
+
+/* Translucent backgrounds (the rgba()/opacity modifiers). */
+:root.theme-light .bg-slate-950\/80 { background-color: rgba(248, 250, 252, 0.8); }
+:root.theme-light .bg-slate-900\/80 { background-color: rgba(255, 255, 255, 0.8); }
+:root.theme-light .bg-slate-900\/60 { background-color: rgba(255, 255, 255, 0.6); }
+:root.theme-light .bg-slate-900\/40 { background-color: rgba(255, 255, 255, 0.4); }
+:root.theme-light .bg-slate-800\/60 { background-color: rgba(241, 245, 249, 0.7); }
+:root.theme-light .bg-slate-800\/40 { background-color: rgba(241, 245, 249, 0.4); }
+
+/* Text colors. Light mode inverts the ramp. */
+:root.theme-light .text-slate-100 { color: #0f172a; }
+:root.theme-light .text-slate-200 { color: #1e293b; }
+:root.theme-light .text-slate-300 { color: #334155; }
+:root.theme-light .text-slate-400 { color: #475569; }
+:root.theme-light .text-slate-500 { color: #64748b; }
+:root.theme-light .text-slate-600 { color: #94a3b8; }
+:root.theme-light .text-slate-700 { color: #cbd5e1; }
+:root.theme-light .text-slate-900 { color: #020617; }
+
+/* Borders. */
+:root.theme-light .border-slate-800 { border-color: #e2e8f0; }
+:root.theme-light .border-slate-700 { border-color: #cbd5e1; }
+:root.theme-light .border-slate-200 { border-color: #e2e8f0; }
+:root.theme-light .border-slate-100 { border-color: #f1f5f9; }
+
+/* Hover states that show up in the shell. */
+:root.theme-light .hover\:bg-slate-800:hover { background-color: #e2e8f0; }
+:root.theme-light .hover\:bg-slate-700:hover { background-color: #cbd5e1; }
+:root.theme-light .hover\:bg-slate-200:hover { background-color: #e2e8f0; }
+:root.theme-light .hover\:bg-slate-100:hover { background-color: #f1f5f9; }
+:root.theme-light .hover\:text-slate-100:hover { color: #0f172a; }
+:root.theme-light .hover\:text-slate-200:hover { color: #1e293b; }
+:root.theme-light .hover\:text-slate-300:hover { color: #334155; }
+:root.theme-light .hover\:border-slate-500:hover { border-color: #94a3b8; }
+:root.theme-light .hover\:border-slate-700:hover { border-color: #cbd5e1; }
+:root.theme-light .hover\:border-slate-800:hover { border-color: #e2e8f0; }
+
+/* Focus rings / active states. */
+:root.theme-light .focus\:border-indigo-500:focus { border-color: #6366f1; }
+:root.theme-light .focus\:ring-indigo-500\/30:focus { box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3); }
+
+/* Dividers used in the header / footer. */
+:root.theme-light .divide-slate-800 > * + * { border-color: #e2e8f0; }
+
+/* Backdrop / shadow tones. The original `shadow-floating` is
+ * defined in dark; in light we use a softer drop shadow. */
+:root.theme-light .shadow-floating { box-shadow: 0 12px 36px -8px rgba(15, 23, 42, 0.18), 0 4px 12px -2px rgba(15, 23, 42, 0.1); }
+:root.theme-light .shadow-soft { box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.1), 0 2px 4px -2px rgba(15, 23, 42, 0.1); }
+
+/* In light mode the active nav pill should use a deeper tone
+ * of the accent so it reads on the light background. */
+:root.theme-light .bg-accent\/15 { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 12%, transparent); }
+
+/* Danger tint: rose in dark is fine, in light we soften it. */
+:root.theme-light .text-rose-400 { color: #e11d48; }
+:root.theme-light .hover\:bg-rose-50:hover { background-color: #fff1f2; }
+:root.theme-light .bg-rose-50 { background-color: #fff1f2; }
+:root.theme-light .border-rose-200 { border-color: #fecdd3; }
+:root.theme-light .bg-rose-500\/10 { background-color: rgba(244, 63, 94, 0.08); }
+:root.theme-light .hover\:bg-rose-500\/10:hover { background-color: rgba(244, 63, 94, 0.08); }
+:root.theme-light .bg-rose-900\/95 { background-color: rgba(254, 226, 226, 0.95); }
+
+/* Body baseline. */
 :root.theme-light body {
   background-color: #f8fafc;
   color: #0f172a;

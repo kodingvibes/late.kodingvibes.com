@@ -69,7 +69,7 @@ export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
                 onClick={() => setMode("light")}
                 className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
                   mode === "light"
-                    ? "bg-indigo-500/20 border-indigo-500 text-indigo-300"
+                    ? "bg-accent/20 border-accent text-accent"
                     : isLight
                     ? "border-slate-200 hover:bg-slate-50"
                     : "border-slate-700 hover:bg-slate-800"
@@ -83,7 +83,7 @@ export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
                 onClick={() => setMode("dark")}
                 className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
                   mode === "dark"
-                    ? "bg-indigo-500/20 border-indigo-500 text-indigo-300"
+                    ? "bg-accent/20 border-accent text-accent"
                     : isLight
                     ? "border-slate-200 hover:bg-slate-50"
                     : "border-slate-700 hover:bg-slate-800"
@@ -129,7 +129,7 @@ export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 rounded-lg text-sm bg-indigo-500 hover:bg-indigo-400 text-white"
+            className="px-3 py-1.5 rounded-lg text-sm bg-accent hover:bg-accent-soft text-white"
           >
             Listo
           </button>

@@ -118,7 +118,7 @@ export function RequireAuth({ children, mountSlot }: RequireAuthProps) {
           <div className="flex flex-col sm:flex-row gap-2">
             <button
               onClick={redirectToSso}
-              className="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium transition"
+              className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-soft text-white text-sm font-medium transition"
             >
               Iniciar sesión con kodingvibes
             </button>

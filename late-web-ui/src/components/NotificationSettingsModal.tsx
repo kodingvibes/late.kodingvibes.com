@@ -123,7 +123,7 @@ export function NotificationSettingsModal({ open, onClose, onSaved }: Notificati
                   onClick={() => update("mode", m)}
                   className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
                     prefs.mode === m
-                      ? "bg-indigo-500/20 border-indigo-500 text-indigo-300"
+                      ? "bg-accent/20 border-accent text-accent"
                       : isLight
                       ? "border-slate-200 hover:bg-slate-50"
                       : "border-slate-700 hover:bg-slate-800"
@@ -196,7 +196,7 @@ export function NotificationSettingsModal({ open, onClose, onSaved }: Notificati
             type="button"
             onClick={save}
             disabled={saving}
-            className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-indigo-500 hover:bg-indigo-400 text-white disabled:opacity-60"
+            className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-accent hover:bg-accent-soft text-white disabled:opacity-60"
           >
             {saving ? "Guardando..." : "Guardar"}
           </button>

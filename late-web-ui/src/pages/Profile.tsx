@@ -1,6 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getSavedSession, updateProfile, serverLogout, clearSession } from "@/lib/chat-session";
+import {
+  getSavedSession,
+  serverLogout,
+  clearSession,
+} from "@/lib/chat-session";
 import { useTheme } from "@/providers/theme-provider";
 import { UserAvatar } from "@/components/UserAvatar";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
@@ -8,27 +12,35 @@ import { NickPromptModal } from "@/components/NickPromptModal";
 import { NotificationSettingsModal } from "@/components/NotificationSettingsModal";
 import { CoffeeIcon } from "@/components/AppLoader";
 import type { LateUser } from "@/types/window";
-import { ArrowLeft, Bell, Edit3, LogOut, Palette, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Bell, Edit3, LogOut, Palette, Trash2, Upload } from "lucide-react";
+
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+const ALLOWED_AVATAR_MIME = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"];
 
 export function Profile() {
   const { mode } = useTheme();
   const isLight = mode === "light";
   const navigate = useNavigate();
   const [user, setUser] = useState<LateUser | null>(() => getSavedSession()?.user ?? null);
-  const [avatarInput, setAvatarInput] = useState("");
-  const [nameInput, setNameInput] = useState("");
-  const [savingAvatar, setSavingAvatar] = useState(false);
-  const [savingName, setSavingName] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [showNick, setShowNick] = useState(false);
   const [showNotif, setShowNotif] = useState(false);
   const [showTheme, setShowTheme] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!user) return;
-    setAvatarInput(user.avatar_url ?? "");
-    setNameInput(user.name ?? "");
-  }, [user]);
+    // The page revs a `?cb=` on the avatar URL to bust caches
+    // when the user replaces their picture. We mirror that
+    // here so the header chip + the profile picture stay in
+    // sync immediately after a save.
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [user, previewUrl]);
 
   if (!user) {
     return (
@@ -39,7 +51,7 @@ export function Profile() {
           <button
             type="button"
             onClick={() => (window.location.href = "/api/auth/exchange" as unknown as string)}
-            className="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white text-sm"
+            className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-soft text-white text-sm"
           >
             Iniciar sesión
           </button>
@@ -50,45 +62,63 @@ export function Profile() {
 
   const nick = user.display_name ?? user.email ?? "?";
 
-  const saveAvatar = async () => {
+  const pickAvatar = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFile = async (file: File | null) => {
+    if (!file) return;
+    if (file.size > MAX_AVATAR_BYTES) {
+      setError(`La imagen es demasiado grande (${(file.size / 1024 / 1024).toFixed(1)} MB, máximo 2 MB).`);
+      return;
+    }
+    if (!ALLOWED_AVATAR_MIME.includes(file.type)) {
+      setError(`Formato no soportado: ${file.type || "desconocido"}. Usá PNG, JPG, WEBP o GIF.`);
+      return;
+    }
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(URL.createObjectURL(file));
     setError(null);
-    setSavingAvatar(true);
+    setUploading(true);
     try {
-      const next = await updateProfile({
-        avatar_url: avatarInput.trim() || null,
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/auth/me/avatar", {
+        method: "POST",
+        body: form,
       });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail.detail || `upload failed: ${res.status}`);
+      }
+      const next = (await res.json()) as LateUser;
       setUser(next);
     } catch (err) {
       setError((err as Error).message);
     } finally {
-      setSavingAvatar(false);
+      setUploading(false);
     }
   };
 
-  const saveName = async () => {
+  const removeAvatar = async () => {
     setError(null);
-    setSavingName(true);
+    setRemoving(true);
     try {
-      const next = await updateProfile({ name: nameInput.trim() });
+      const res = await fetch("/api/auth/me/avatar", { method: "DELETE" });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail.detail || `remove failed: ${res.status}`);
+      }
+      const next = (await res.json()) as LateUser;
       setUser(next);
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(null);
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
-      setSavingName(false);
-    }
-  };
-
-  const clearAvatar = async () => {
-    setError(null);
-    setSavingAvatar(true);
-    try {
-      const next = await updateProfile({ avatar_url: null });
-      setUser(next);
-      setAvatarInput("");
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setSavingAvatar(false);
+      setRemoving(false);
     }
   };
 
@@ -123,7 +153,7 @@ export function Profile() {
               {user.email}
             </p>
             {user.global_role && user.global_role !== "user" && (
-              <span className="inline-block mt-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300">
+              <span className="inline-block mt-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-accent/20 text-accent">
                 {user.global_role}
               </span>
             )}
@@ -149,76 +179,45 @@ export function Profile() {
         >
           <h2 className="text-sm font-semibold uppercase tracking-wider opacity-70">Avatar</h2>
           <p className={`text-xs ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-            Pegá la URL de tu foto de Supabase (o de cualquier CDN). Si la URL falla o está vacía,
-            volvemos a las iniciales.
+            Subí una imagen desde tu dispositivo. PNG, JPG, WEBP o GIF, hasta 2 MB.
           </p>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-3 flex-wrap">
             <input
-              value={avatarInput}
-              onChange={(e) => setAvatarInput(e.target.value)}
-              placeholder="https://..."
-              className={`flex-1 px-3 py-2 rounded-lg border text-sm focus:outline-none focus:border-indigo-500 ${
-                isLight
-                  ? "bg-slate-50 border-slate-200"
-                  : "bg-slate-950 border-slate-700"
-              }`}
+              ref={fileInputRef}
+              type="file"
+              accept={ALLOWED_AVATAR_MIME.join(",")}
+              className="hidden"
+              onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
             />
             <button
               type="button"
-              onClick={saveAvatar}
-              disabled={savingAvatar}
-              className="px-3 py-2 rounded-lg text-sm font-semibold bg-indigo-500 hover:bg-indigo-400 text-white disabled:opacity-60"
+              onClick={pickAvatar}
+              disabled={uploading || removing}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold bg-accent hover:bg-accent-soft text-white disabled:opacity-60"
             >
-              <Save className="w-4 h-4 inline -mt-0.5 mr-1" />
-              Guardar
+              <Upload className="w-4 h-4" />
+              {uploading ? "Subiendo..." : user.avatar_url ? "Reemplazar" : "Subir imagen"}
             </button>
             {user.avatar_url && (
               <button
                 type="button"
-                onClick={clearAvatar}
-                disabled={savingAvatar}
-                className={`px-3 py-2 rounded-lg text-sm ${
+                onClick={removeAvatar}
+                disabled={uploading || removing}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
                   isLight
                     ? "border border-slate-200 hover:bg-slate-100"
                     : "border border-slate-700 hover:bg-slate-800"
                 }`}
-                title="Quitar avatar"
               >
                 <Trash2 className="w-4 h-4" />
+                {removing ? "Quitando..." : "Quitar avatar"}
               </button>
             )}
-          </div>
-        </section>
-
-        <section
-          className={`rounded-2xl border p-6 space-y-4 ${
-            isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800"
-          }`}
-        >
-          <h2 className="text-sm font-semibold uppercase tracking-wider opacity-70">Nombre</h2>
-          <p className={`text-xs ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-            Tu nombre completo. El nick es lo que se ve en el chat.
-          </p>
-          <div className="flex gap-2">
-            <input
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              maxLength={80}
-              className={`flex-1 px-3 py-2 rounded-lg border text-sm focus:outline-none focus:border-indigo-500 ${
-                isLight
-                  ? "bg-slate-50 border-slate-200"
-                  : "bg-slate-950 border-slate-700"
-              }`}
-            />
-            <button
-              type="button"
-              onClick={saveName}
-              disabled={savingName}
-              className="px-3 py-2 rounded-lg text-sm font-semibold bg-indigo-500 hover:bg-indigo-400 text-white disabled:opacity-60"
-            >
-              <Save className="w-4 h-4 inline -mt-0.5 mr-1" />
-              Guardar
-            </button>
+            {previewUrl && (
+              <span className={`text-xs ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                Previsualizando archivo nuevo...
+              </span>
+            )}
           </div>
         </section>
 
