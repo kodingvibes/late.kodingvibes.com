@@ -1,3 +1,10 @@
+## [1.19.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.19.0...v1.19.1) (2026-07-25)
+
+
+### Bug Fixes
+
+* **shell:** apply accent color and complete light mode coverage ([5b29eef](https://github.com/kodingvibes/late.kodingvibes.com/commit/5b29eef84aae301413ed123e7e290a629b14075d))
+
 # [1.19.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.18.0...v1.19.0) (2026-07-25)
 
 
