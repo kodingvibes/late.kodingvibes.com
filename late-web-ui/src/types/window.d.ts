@@ -36,9 +36,33 @@ export interface ChatEngineAPI {
   openNotificationSettings?: () => void;
 }
 
+/** ponytail: a small read-only theme snapshot the shell
+ *  publishes on window so the micro-fronts can pick up the
+ *  same light/dark mode + accent without having to ship
+ *  their own ThemeProvider. Updated whenever the user picks
+ *  a new combo in the theme switcher. The shell also fires
+ *  a `late:theme-change` CustomEvent on `window` so the MFs
+ *  can react synchronously without polling. */
+export type ThemeMode = "light" | "dark";
+export type AccentName =
+  | "indigo"
+  | "violet"
+  | "emerald"
+  | "rose"
+  | "amber"
+  | "cyan";
+export interface LateTheme {
+  mode: ThemeMode;
+  accent: AccentName;
+  accentPrimary: string;
+  accentSoft: string;
+  accentRing: string;
+}
+
 declare global {
   interface Window {
     LateSession?: LateSessionAPI;
+    LateTheme?: LateTheme;
     DashboardEngine?: { version: string };
     ChatEngine?: ChatEngineAPI;
     __lateMicroDashboardMount?: () => void;

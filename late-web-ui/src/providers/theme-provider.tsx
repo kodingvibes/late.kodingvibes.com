@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import type { AccentName as AccentNameType, LateTheme, ThemeMode as ThemeModeType } from "@/types/window";
 
-export type ThemeMode = "light" | "dark";
-export type AccentName = "indigo" | "violet" | "emerald" | "rose" | "amber" | "cyan";
+export type ThemeMode = ThemeModeType;
+export type AccentName = AccentNameType;
 
 export interface ThemeState {
   mode: ThemeMode;
@@ -55,6 +56,25 @@ function applyTheme(state: ThemeState) {
   root.style.setProperty("--accent-primary", vars.primary);
   root.style.setProperty("--accent-soft", vars.soft);
   root.style.setProperty("--accent-ring", vars.ring);
+  // ponytail: the shell publishes the active theme on
+  // window.LateTheme + dispatches `late:theme-change` so the
+  // micro-fronts (chat, radio, dashboard) can mirror the
+  // exact mode + accent without shipping their own provider.
+  // The MFs subscribe to the event and read window.LateTheme
+  // synchronously on mount.
+  const snapshot: LateTheme = {
+    mode: state.mode,
+    accent: state.accent,
+    accentPrimary: vars.primary,
+    accentSoft: vars.soft,
+    accentRing: vars.ring,
+  };
+  try {
+    (window as unknown as { LateTheme?: LateTheme }).LateTheme = snapshot;
+    window.dispatchEvent(new CustomEvent<LateTheme>("late:theme-change", { detail: snapshot }));
+  } catch {
+    /* ignore — older browsers / SSR */
+  }
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
