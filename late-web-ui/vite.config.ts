@@ -58,6 +58,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@late/theme": path.resolve(__dirname, "../packages/late-theme"),
     },
   },
   server: {

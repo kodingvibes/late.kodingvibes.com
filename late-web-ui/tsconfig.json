@@ -17,7 +17,9 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@late/theme": ["../packages/late-theme"],
+      "@late/theme/*": ["../packages/late-theme/*"]
     }
   },
   "include": ["src"],

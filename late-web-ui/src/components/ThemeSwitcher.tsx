@@ -1,19 +1,11 @@
 import { useEffect, useRef } from "react";
 import { Check, Sun, Moon, Palette } from "lucide-react";
-import { useTheme, ACCENT_NAMES, AccentName } from "@/providers/theme-provider";
+import { useTheme, ACCENT_NAMES } from "@/providers/theme-provider";
+import { ACCENT_SWATCHES } from "@late/theme";
 
 interface ThemeSwitcherProps {
   onClose: () => void;
 }
-
-const ACCENT_SWATCHES: Record<AccentName, string> = {
-  indigo: "#6366f1",
-  violet: "#8b5cf6",
-  emerald: "#10b981",
-  rose: "#f43f5e",
-  amber: "#f59e0b",
-  cyan: "#06b6d4",
-};
 
 export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
   const { mode, accent, setMode, setAccent } = useTheme();

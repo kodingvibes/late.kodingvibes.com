@@ -226,7 +226,7 @@ export default function MiniPlayer() {
           {isPinned && (
             <>
               <div className="flex-1 min-w-0 flex items-center gap-2">
-                <span className={`text-base leading-none flex-shrink-0 ${state.current.accent || "text-indigo-400"}`}>
+                <span className={`text-base leading-none flex-shrink-0 ${state.current.accent || "text-accent"}`}>
                   {state.current.emoji || "\u266A"}
                 </span>
                 <div className="min-w-0 flex flex-col leading-tight flex-1">
@@ -265,7 +265,7 @@ export default function MiniPlayer() {
                 step={0.05}
                 value={state.muted ? 0 : state.volume}
                 onChange={(e) => engine.setVolume(Number(e.target.value))}
-                className="w-16 sm:w-14 md:w-20 accent-indigo-500 flex-shrink-0"
+                className="w-16 sm:w-14 md:w-20 accent-accent flex-shrink-0"
                 aria-label="Volumen"
               />
 
@@ -318,7 +318,7 @@ export default function MiniPlayer() {
             <>
               {!collapsed && (
                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <span className={`text-base leading-none ${state.current.accent || "text-indigo-400"}`}>
+                  <span className={`text-base leading-none ${state.current.accent || "text-accent"}`}>
                     {state.current.emoji || "\u266A"}
                   </span>
                   <span className="text-xs font-semibold text-slate-300 truncate max-w-[6rem]">
@@ -378,7 +378,7 @@ export default function MiniPlayer() {
                     step={0.05}
                     value={state.muted ? 0 : state.volume}
                     onChange={(e) => engine.setVolume(Number(e.target.value))}
-                    className="w-12 sm:w-16 hidden sm:block accent-indigo-500"
+                    className="w-12 sm:w-16 hidden sm:block accent-accent"
                     aria-label="Volumen"
                   />
 

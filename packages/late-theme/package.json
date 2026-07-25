@@ -1,0 +1,16 @@
+{
+  "name": "@late/theme",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./tokens.css": "./tokens.css",
+    "./animations.css": "./animations.css",
+    "./types": "./types.ts",
+    "./accents": "./accents.ts",
+    "./defaults": "./defaults.ts",
+    "./swatches": "./swatches.ts"
+  },
+  "sideEffects": ["*.css"]
+}

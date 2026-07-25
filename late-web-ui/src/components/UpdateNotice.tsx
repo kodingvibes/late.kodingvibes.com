@@ -188,19 +188,19 @@ export function UpdateNotice() {
   return (
     <div
       role="status"
-      className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 sm:gap-3 bg-indigo-600 text-white text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 sm:py-2.5 rounded-full shadow-lg shadow-indigo-900/40 max-w-[calc(100vw-1.5rem)]"
+      className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 sm:gap-3 bg-accent text-white text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 sm:py-2.5 rounded-full shadow-lg shadow-accent/40 max-w-[calc(100vw-1.5rem)]"
     >
       <span className="hidden sm:inline">{label}</span>
       <span className="sm:hidden">Actualización</span>
       <button
         onClick={() => applyUpdate()}
-        className="bg-white text-indigo-700 px-2.5 py-1 rounded-full font-bold hover:bg-indigo-50"
+        className="bg-white text-accent px-2.5 py-1 rounded-full font-bold hover:bg-accent/10"
       >
         Actualizar
       </button>
       <button
         onClick={() => setDismissed(true)}
-        className="bg-indigo-500/40 text-white/90 hover:text-white hover:bg-indigo-500/70 px-2 py-1 rounded-full font-medium"
+        className="bg-accent/40 text-white/90 hover:text-white hover:bg-accent/70 px-2 py-1 rounded-full font-medium"
         aria-label="Cancelar actualización"
         title="Cancelar"
       >
