@@ -1,3 +1,10 @@
+# [1.12.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.11.0...v1.12.0) (2026-07-25)
+
+
+### Features
+
+* **deployd:** time-range charts for cpu/memory/swap ([c02c2c8](https://github.com/kodingvibes/late.kodingvibes.com/commit/c02c2c8d53c4afa7921188308de58080a00d90ee))
+
 # [1.11.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.10.2...v1.11.0) (2026-07-25)
 
 
