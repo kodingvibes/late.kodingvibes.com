@@ -30,12 +30,12 @@ const ACCENT_VARS: Record<
     glowBLight: string;
   }
 > = {
-  indigo: { primary: "#6366f1", soft: "#818cf8", ring: "#a5b4fc", glowA: "rgba(99,102,241,0.18)", glowB: "rgba(99,102,241,0.12)", glowALight: "rgba(79,70,229,0.16)", glowBLight: "rgba(99,102,241,0.10)" },
-  violet: { primary: "#8b5cf6", soft: "#a78bfa", ring: "#c4b5fd", glowA: "rgba(139,92,246,0.18)", glowB: "rgba(139,92,246,0.12)", glowALight: "rgba(124,58,237,0.16)", glowBLight: "rgba(139,92,246,0.10)" },
-  emerald: { primary: "#10b981", soft: "#34d399", ring: "#6ee7b7", glowA: "rgba(16,185,129,0.18)", glowB: "rgba(16,185,129,0.12)", glowALight: "rgba(5,150,105,0.16)", glowBLight: "rgba(16,185,129,0.10)" },
-  rose: { primary: "#f43f5e", soft: "#fb7185", ring: "#fda4af", glowA: "rgba(244,63,94,0.18)", glowB: "rgba(244,63,94,0.12)", glowALight: "rgba(225,29,72,0.16)", glowBLight: "rgba(244,63,94,0.10)" },
-  amber: { primary: "#f59e0b", soft: "#fbbf24", ring: "#fcd34d", glowA: "rgba(245,158,11,0.18)", glowB: "rgba(245,158,11,0.12)", glowALight: "rgba(217,119,6,0.16)", glowBLight: "rgba(245,158,11,0.10)" },
-  cyan: { primary: "#06b6d4", soft: "#22d3ee", ring: "#67e8f9", glowA: "rgba(6,182,212,0.18)", glowB: "rgba(6,182,212,0.12)", glowALight: "rgba(8,145,178,0.16)", glowBLight: "rgba(6,182,212,0.10)" },
+  indigo: { primary: "#6366f1", soft: "#818cf8", ring: "#a5b4fc", glowA: "rgba(99,102,241,0.70)", glowB: "rgba(99,102,241,0.45)", glowALight: "rgba(79,70,229,0.60)", glowBLight: "rgba(99,102,241,0.35)" },
+  violet: { primary: "#8b5cf6", soft: "#a78bfa", ring: "#c4b5fd", glowA: "rgba(139,92,246,0.70)", glowB: "rgba(139,92,246,0.45)", glowALight: "rgba(124,58,237,0.60)", glowBLight: "rgba(139,92,246,0.35)" },
+  emerald: { primary: "#10b981", soft: "#34d399", ring: "#6ee7b7", glowA: "rgba(16,185,129,0.70)", glowB: "rgba(16,185,129,0.45)", glowALight: "rgba(5,150,105,0.60)", glowBLight: "rgba(16,185,129,0.35)" },
+  rose: { primary: "#f43f5e", soft: "#fb7185", ring: "#fda4af", glowA: "rgba(244,63,94,0.70)", glowB: "rgba(244,63,94,0.45)", glowALight: "rgba(225,29,72,0.60)", glowBLight: "rgba(244,63,94,0.35)" },
+  amber: { primary: "#f59e0b", soft: "#fbbf24", ring: "#fcd34d", glowA: "rgba(245,158,11,0.70)", glowB: "rgba(245,158,11,0.45)", glowALight: "rgba(217,119,6,0.60)", glowBLight: "rgba(245,158,11,0.35)" },
+  cyan: { primary: "#06b6d4", soft: "#22d3ee", ring: "#67e8f9", glowA: "rgba(6,182,212,0.70)", glowB: "rgba(6,182,212,0.45)", glowALight: "rgba(8,145,178,0.60)", glowBLight: "rgba(6,182,212,0.35)" },
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
