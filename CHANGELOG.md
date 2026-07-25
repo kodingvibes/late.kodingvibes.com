@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.2.0...v1.3.0) (2026-07-25)
+
+
+### Features
+
+* **chat:** every user belongs to every channel ([4e3d539](https://github.com/kodingvibes/late.kodingvibes.com/commit/4e3d5394d43efe0ce84ea3f689ebe6c6ca008c8d))
+
 # [1.2.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.1.0...v1.2.0) (2026-07-25)
 
 
