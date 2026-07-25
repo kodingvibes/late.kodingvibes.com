@@ -1,3 +1,10 @@
+## [1.8.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.8.0...v1.8.1) (2026-07-25)
+
+
+### Bug Fixes
+
+* **deployd:** unwrap {valid,user} response from /api/auth/validate ([93f58aa](https://github.com/kodingvibes/late.kodingvibes.com/commit/93f58aa0db9906a57738686ba3f2705cea172dbb))
+
 # [1.8.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.7.0...v1.8.0) (2026-07-25)
 
 
