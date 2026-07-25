@@ -1,7 +1,7 @@
 {
   "name": "late-web-ui",
   "private": true,
-  "version": "1.20.4",
+  "version": "1.20.5",
   "type": "module",
   "scripts": {
     "dev": "vite",

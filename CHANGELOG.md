@@ -1,3 +1,10 @@
+## [1.20.5](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.20.4...v1.20.5) (2026-07-25)
+
+
+### Bug Fixes
+
+* **shell:** stronger uniform accent tint on the page surface ([3417a67](https://github.com/kodingvibes/late.kodingvibes.com/commit/3417a671d143dcd293897c6ea042005de954ca1b)), closes [#020617](https://github.com/kodingvibes/late.kodingvibes.com/issues/020617) [#f8fafc](https://github.com/kodingvibes/late.kodingvibes.com/issues/f8fafc) [#0b1120](https://github.com/kodingvibes/late.kodingvibes.com/issues/0b1120)
+
 ## [1.20.4](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.20.3...v1.20.4) (2026-07-25)
 
 
