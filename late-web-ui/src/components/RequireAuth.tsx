@@ -2,6 +2,7 @@ import { useEffect, useState, ReactNode } from "react";
 import { AppLoader } from "@/components/AppLoader";
 import {
   clearSession,
+  exchangeToken,
   getSavedSession,
   installLateSession,
   redirectToSso,
@@ -49,17 +50,15 @@ export function RequireAuth({ children, mountSlot }: RequireAuthProps) {
       // We don't know which page the user came in on; ask the
       // chat-session helper to do the exchange. The redirect
       // target after exchange is the same page they came from.
-      import("@/lib/chat-session").then(({ exchangeToken }) =>
-        exchangeToken(token)
-          .then((session) => {
-            saveSession(session);
-            setPhase("ready");
-          })
-          .catch((e) => {
-            setError(e.message || "El enlace de sesión expiró o es inválido.");
-            setPhase("login");
-          }),
-      );
+      exchangeToken(token)
+        .then((session) => {
+          saveSession(session);
+          setPhase("ready");
+        })
+        .catch((e) => {
+          setError(e.message || "El enlace de sesión expiró o es inválido.");
+          setPhase("login");
+        });
       return;
     }
 
