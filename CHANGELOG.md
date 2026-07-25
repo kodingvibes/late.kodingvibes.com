@@ -1,3 +1,10 @@
+## [1.6.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.6.0...v1.6.1) (2026-07-25)
+
+
+### Bug Fixes
+
+* **chat:** pass session display_name/email to message repo functions ([2e75c88](https://github.com/kodingvibes/late.kodingvibes.com/commit/2e75c88224b68c5d8567ad372b4aaa69a899d683))
+
 # [1.6.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.5.0...v1.6.0) (2026-07-25)
 
 
