@@ -3,4 +3,4 @@
  * Rendered in the header so it's easy to confirm a deploy took
  * effect by hard-reloading the page.
  */
-export const APP_VERSION = 'v1.5.0'
+export const APP_VERSION = 'v1.6.0'

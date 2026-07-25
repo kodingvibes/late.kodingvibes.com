@@ -1,3 +1,15 @@
+# [1.6.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.5.0...v1.6.0) (2026-07-25)
+
+
+### Bug Fixes
+
+* **deployd:** use Docker restart script and /healthz probe ([d2ab39c](https://github.com/kodingvibes/late.kodingvibes.com/commit/d2ab39cdb81adb06d0061c0f8c1011dbd7e78ccf))
+
+
+### Features
+
+* **chat-bridge:** add /healthz endpoint + Docker restart script ([223e462](https://github.com/kodingvibes/late.kodingvibes.com/commit/223e462a595035e70855806c9daa72c74d303765))
+
 # [1.5.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.4.0...v1.5.0) (2026-07-25)
 
 
