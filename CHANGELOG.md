@@ -1,3 +1,10 @@
+# [1.26.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.25.0...v1.26.0) (2026-07-26)
+
+
+### Features
+
+* **theme:** add .bg-surface-* tokens, migrate large chrome to .bg-mf-surface/.bg-surface-2/3 ([76a2712](https://github.com/kodingvibes/late.kodingvibes.com/commit/76a2712fe2e760c846567caa38645fdd7817fbdd))
+
 # [1.25.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.24.1...v1.25.0) (2026-07-26)
 
 
