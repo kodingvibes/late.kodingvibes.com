@@ -54,6 +54,36 @@ REPOS = {
         "branch": "main",
         "deploy": "micro_dashboard",
     },
+    "late-micro-profiles": {
+        "path": "/root/late-micro-profiles",
+        "branch": "main",
+        "deploy": "micro_profiles",
+        "url": "git@github.com:kodingvibes/late-micro-profiles.git",
+    },
+    "late-micro-freelance": {
+        "path": "/root/late-micro-freelance",
+        "branch": "main",
+        "deploy": "micro_freelance",
+        "url": "git@github.com:kodingvibes/late-micro-freelance.git",
+    },
+    "late-micro-games": {
+        "path": "/root/late-micro-games",
+        "branch": "main",
+        "deploy": "micro_games",
+        "url": "git@github.com:kodingvibes/late-micro-games.git",
+    },
+    "late-micro-forum": {
+        "path": "/root/late-micro-forum",
+        "branch": "main",
+        "deploy": "micro_forum",
+        "url": "git@github.com:kodingvibes/late-micro-forum.git",
+    },
+    "late-micro-trivia": {
+        "path": "/root/late-micro-trivia",
+        "branch": "main",
+        "deploy": "micro_trivia",
+        "url": "git@github.com:kodingvibes/late-micro-trivia.git",
+    },
     "late-chat-service": {
         "path": "/root/late-chat-service",
         "branch": "main",
@@ -136,6 +166,23 @@ def git_pull(repo_path: str) -> tuple[int, list[str]]:
     if err:
         log.append(f"stderr: {err.rstrip()}")
     log.append(f"exit code: {rc}")
+    return rc, log
+
+
+def ensure_repo(path: str, url: str, branch: str, log: list[str]) -> tuple[int, list[str]]:
+    # ponytail: clone the repo on first deploy if /root/late-micro-X doesn't
+    # exist yet. Avoids the manual `git clone` step. Uses SSH because the
+    # deploy key already lives in /root/.ssh/ — see AGENTS.md.
+    head, _tail = log, []
+    if os.path.isdir(os.path.join(path, ".git")):
+        return 0, log
+    log.append(f"[{now_iso()}] cloning {url} -> {path} (branch {branch})")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    rc, out, err = run(["git", "clone", "--branch", branch, url, path])
+    log.append(out.rstrip())
+    if err:
+        log.append(f"stderr: {err.rstrip()}")
+    log.append(f"clone exit code: {rc}")
     return rc, log
 
 
@@ -354,11 +401,61 @@ def deploy_micro_dashboard(repo_path: str, log: list[str]) -> int:
     )
 
 
+def deploy_micro_profiles(repo_path: str, log: list[str]) -> int:
+    return deploy_micro(
+        "profiles",
+        repo_path,
+        "/root/late.kodingvibes.com/scripts/build-micro-profiles.sh",
+        log,
+    )
+
+
+def deploy_micro_freelance(repo_path: str, log: list[str]) -> int:
+    return deploy_micro(
+        "freelance",
+        repo_path,
+        "/root/late.kodingvibes.com/scripts/build-micro-freelance.sh",
+        log,
+    )
+
+
+def deploy_micro_games(repo_path: str, log: list[str]) -> int:
+    return deploy_micro(
+        "games",
+        repo_path,
+        "/root/late.kodingvibes.com/scripts/build-micro-games.sh",
+        log,
+    )
+
+
+def deploy_micro_forum(repo_path: str, log: list[str]) -> int:
+    return deploy_micro(
+        "forum",
+        repo_path,
+        "/root/late.kodingvibes.com/scripts/build-micro-forum.sh",
+        log,
+    )
+
+
+def deploy_micro_trivia(repo_path: str, log: list[str]) -> int:
+    return deploy_micro(
+        "trivia",
+        repo_path,
+        "/root/late.kodingvibes.com/scripts/build-micro-trivia.sh",
+        log,
+    )
+
+
 DEPLOYERS = {
     "shell_only": deploy_shell_only,
     "micro_radio": deploy_micro_radio,
     "micro_chat": deploy_micro_chat,
     "micro_dashboard": deploy_micro_dashboard,
+    "micro_profiles": deploy_micro_profiles,
+    "micro_freelance": deploy_micro_freelance,
+    "micro_games": deploy_micro_games,
+    "micro_forum": deploy_micro_forum,
+    "micro_trivia": deploy_micro_trivia,
     "chat_service": deploy_chat_service,
     "auth_service": deploy_auth_service,
 }
@@ -367,6 +464,14 @@ DEPLOYERS = {
 def run_deploy(repo_name: str, config: dict, after: str, delivery: Optional[str]) -> None:
     with LOCKS[repo_name]:
         logger.info("[%s] start deploy for %s @ %s", delivery, repo_name, after)
+        log: list[str] = []
+        if config.get("url") and not os.path.isdir(os.path.join(config["path"], ".git")):
+            rc, log = ensure_repo(config["path"], config["url"], config.get("branch", "main"), log)
+            if rc != 0:
+                log.append(f"[{now_iso()}] clone failed, aborting")
+                write_deploy_log(repo_name, log)
+                logger.error("[%s] clone failed for %s", delivery, repo_name)
+                return
         rc, log = git_pull(config["path"])
         if rc != 0:
             log.append(f"[{now_iso()}] git pull failed, aborting")
