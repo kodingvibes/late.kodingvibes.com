@@ -139,151 +139,178 @@ async def check_http(url: str, *, timeout: float = 2.0) -> dict:
         return {"ok": False, "status": 0, "ms": ms, "error": str(e)}
 
 
-async def g_system() -> dict:
-    def _loadavg() -> Optional[str]:
+def _loadavg() -> Optional[str]:
+    try:
+        with open("/proc/loadavg") as f:
+            return " ".join(f.read().split()[:3])
+    except OSError:
+        return None
+
+
+def _mem() -> dict:
+    info: dict[str, int] = {}
+    try:
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if ":" in line:
+                    k, v = line.split(":", 1)
+                    v = v.strip().split()[0] if v.strip() else "0"
+                    info[k] = int(v) * 1024
+    except OSError:
+        pass
+    total = info.get("MemTotal", 0)
+    avail = info.get("MemAvailable", 0)
+    used = max(total - avail, 0)
+    pct = int(used * 100 / total) if total else 0
+    return {"total": total, "used": used, "avail": avail, "pct": pct}
+
+
+def _swap() -> dict:
+    info: dict[str, int] = {}
+    try:
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if ":" in line:
+                    k, v = line.split(":", 1)
+                    v = v.strip().split()[0] if v.strip() else "0"
+                    info[k] = int(v) * 1024
+    except OSError:
+        pass
+    total = info.get("SwapTotal", 0)
+    free = info.get("SwapFree", 0)
+    used = max(total - free, 0)
+    pct = int(used * 100 / total) if total else 0
+    return {"total": total, "used": used, "free": free, "pct": pct}
+
+
+def _disk(path: str) -> dict:
+    # shutil.disk_usage covers bytes but not inodes; statvfs adds
+    # f_files/f_ffree. The /data filesystem is typically a single
+    # ext4 mount on a small droplet, so this is cheap.
+    try:
+        st = shutil.disk_usage(path)
+    except OSError as e:
+        return {"error": str(e)}
+    pct = int(st.used * 100 / st.total) if st.total else 0
+    out: dict = {"total": st.total, "used": st.used, "free": st.free, "pct": pct}
+    try:
+        sv = os.statvfs(path)
+        inodes_total = sv.f_files
+        inodes_free = sv.f_ffree
+        inodes_used = inodes_total - inodes_free
+        inodes_pct = int(inodes_used * 100 / inodes_total) if inodes_total else 0
+        out["inodes"] = {
+            "total": inodes_total,
+            "used": inodes_used,
+            "free": inodes_free,
+            "pct": inodes_pct,
+        }
+    except OSError:
+        pass
+    return out
+
+
+def _top_dirs() -> list[dict]:
+    # A focused top-5 of the directories that actually grow on this
+    # host. `du -sb` is blocking and can take a while once these
+    # directories are large, so this only ever runs from the
+    # expensive (3s) path, never from fast_snapshot's per-second tick.
+    candidates = [
+        ("/data/late-auth", "/data/late-auth"),
+        ("/data/late-chat-service", "/data/late-chat-service"),
+        ("/data/chat-bridge", "/data/chat-bridge"),
+        ("/var/log/late-deployd", "/var/log/late-deployd"),
+        ("/var/lib/late-dashboard", "/var/lib/late-dashboard"),
+    ]
+    rows: list[dict] = []
+    for path, label in candidates:
         try:
-            with open("/proc/loadavg") as f:
-                return " ".join(f.read().split()[:3])
-        except OSError:
-            return None
-
-    def _mem() -> dict:
-        info: dict[str, int] = {}
+            out = subprocess.run(
+                ["du", "-sb", "--", path],
+                capture_output=True, text=True, timeout=4,
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            continue
+        if out.returncode != 0 or not out.stdout.strip():
+            continue
         try:
-            with open("/proc/meminfo") as f:
-                for line in f:
-                    if ":" in line:
-                        k, v = line.split(":", 1)
-                        v = v.strip().split()[0] if v.strip() else "0"
-                        info[k] = int(v) * 1024
-        except OSError:
-            pass
-        total = info.get("MemTotal", 0)
-        avail = info.get("MemAvailable", 0)
-        used = max(total - avail, 0)
-        pct = int(used * 100 / total) if total else 0
-        return {"total": total, "used": used, "avail": avail, "pct": pct}
+            size = int(out.stdout.split()[0])
+        except (ValueError, IndexError):
+            continue
+        rows.append({"path": path, "label": label, "bytes": size})
+    rows.sort(key=lambda r: r["bytes"], reverse=True)
+    return rows[:5]
 
-    def _swap() -> dict:
-        info: dict[str, int] = {}
-        try:
-            with open("/proc/meminfo") as f:
-                for line in f:
-                    if ":" in line:
-                        k, v = line.split(":", 1)
-                        v = v.strip().split()[0] if v.strip() else "0"
-                        info[k] = int(v) * 1024
-        except OSError:
-            pass
-        total = info.get("SwapTotal", 0)
-        free = info.get("SwapFree", 0)
-        used = max(total - free, 0)
-        pct = int(used * 100 / total) if total else 0
-        return {"total": total, "used": used, "free": free, "pct": pct}
 
-    def _disk(path: str) -> dict:
-        # ponytail: shutil.disk_usage covers bytes but not
-        # inodes. We read /proc/mounts to find the device
-        # that holds the path, then statvfs to get f_files /
-        # f_ffree. The /data filesystem is typically a single
-        # ext4 mount on a small droplet, so this is cheap.
-        try:
-            st = shutil.disk_usage(path)
-        except OSError as e:
-            return {"error": str(e)}
-        pct = int(st.used * 100 / st.total) if st.total else 0
-        out: dict = {"total": st.total, "used": st.used, "free": st.free, "pct": pct}
-        try:
-            sv = os.statvfs(path)
-            inodes_total = sv.f_files
-            inodes_free = sv.f_ffree
-            inodes_used = inodes_total - inodes_free
-            inodes_pct = int(inodes_used * 100 / inodes_total) if inodes_total else 0
-            out["inodes"] = {
-                "total": inodes_total,
-                "used": inodes_used,
-                "free": inodes_free,
-                "pct": inodes_pct,
-            }
-        except OSError:
-            pass
-        return out
+def _uptime() -> Optional[int]:
+    try:
+        with open("/proc/uptime") as f:
+            return int(float(f.read().split()[0]))
+    except (OSError, ValueError, IndexError):
+        return None
 
-    def _top_dirs() -> list[dict]:
-        # ponytail: a focused top-5 of the directories that
-        # actually grow on this host. `du -sb` is the
-        # quickest way to get a real byte count, and a
-        # single pass with --max-depth=1 keeps it bounded.
-        # We also size the parent so the percentages below
-        # are honest.
-        candidates = [
-            ("/data/late-auth", "/data/late-auth"),
-            ("/data/late-chat-service", "/data/late-chat-service"),
-            ("/data/chat-bridge", "/data/chat-bridge"),
-            ("/var/log/late-deployd", "/var/log/late-deployd"),
-            ("/var/lib/late-dashboard", "/var/lib/late-dashboard"),
-        ]
-        rows: list[dict] = []
-        for path, label in candidates:
-            try:
-                out = subprocess.run(
-                    ["du", "-sb", "--", path],
-                    capture_output=True, text=True, timeout=4,
-                )
-            except (FileNotFoundError, subprocess.TimeoutExpired):
-                continue
-            if out.returncode != 0 or not out.stdout.strip():
-                continue
-            try:
-                size = int(out.stdout.split()[0])
-            except (ValueError, IndexError):
-                continue
-            rows.append({"path": path, "label": label, "bytes": size})
-        rows.sort(key=lambda r: r["bytes"], reverse=True)
-        return rows[:5]
 
-    def _uptime() -> Optional[int]:
-        try:
-            with open("/proc/uptime") as f:
-                return int(float(f.read().split()[0]))
-        except (OSError, ValueError, IndexError):
-            return None
+def _cpu_sample() -> Optional[tuple]:
+    try:
+        with open("/proc/stat") as f:
+            line = f.readline()
+        parts = line.split()
+        nums = [int(x) for x in parts[1:]]
+        total = sum(nums)
+        idle = nums[3] if len(nums) > 3 else 0
+        return total - idle, total
+    except (OSError, ValueError, IndexError):
+        return None
 
-    def _cpu_sample() -> Optional[tuple]:
-        try:
-            with open("/proc/stat") as f:
-                line = f.readline()
-            parts = line.split()
-            nums = [int(x) for x in parts[1:]]
-            total = sum(nums)
-            idle = nums[3] if len(nums) > 3 else 0
-            return total - idle, total
-        except (OSError, ValueError, IndexError):
-            return None
 
-    def _cpu_pct() -> Optional[int]:
-        a = _cpu_sample()
-        if a is None:
-            return None
-        time.sleep(0.2)
-        b = _cpu_sample()
-        if b is None:
-            return None
-        busy = b[0] - a[0]
-        total = b[1] - a[1]
-        if total <= 0:
-            return 0
-        return int(busy * 100 / total)
+def _cpu_pct() -> Optional[int]:
+    a = _cpu_sample()
+    if a is None:
+        return None
+    time.sleep(0.2)
+    b = _cpu_sample()
+    if b is None:
+        return None
+    busy = b[0] - a[0]
+    total = b[1] - a[1]
+    if total <= 0:
+        return 0
+    return int(busy * 100 / total)
 
+
+def _system_cheap_sync() -> dict:
+    """loadavg/mem/swap/cpu: what the per-second gauge tick needs.
+    Still blocking (the cpu sample sleeps 200ms) — only ever call
+    this via asyncio.to_thread, never directly from a coroutine."""
     return {
         "loadavg": _loadavg(),
         "memory": _mem(),
         "swap": _swap(),
+        "cpu_pct": _cpu_pct(),
+    }
+
+
+def _system_extras_sync() -> dict:
+    """disk/top_dirs/uptime: only needed by the full 3s snapshot.
+    top_dirs() can spawn up to 5 `du` subprocesses, so this stays
+    off the per-second path."""
+    return {
         "disk_data": _disk("/data"),
         "top_dirs": _top_dirs(),
         "uptime_s": _uptime(),
-        "cpu_pct": _cpu_pct(),
     }
+
+
+async def _system_cheap() -> dict:
+    return await asyncio.to_thread(_system_cheap_sync)
+
+
+async def g_system() -> dict:
+    cheap, extras = await asyncio.gather(
+        asyncio.to_thread(_system_cheap_sync),
+        asyncio.to_thread(_system_extras_sync),
+    )
+    return {**cheap, **extras}
 
 
 async def g_service_health() -> dict:
@@ -347,7 +374,10 @@ async def g_docker() -> dict:
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return {}
 
-    return {"containers": _ps(), "df": _df()}
+    def _collect() -> dict:
+        return {"containers": _ps(), "df": _df()}
+
+    return await asyncio.to_thread(_collect)
 
 
 async def g_icecast() -> dict:
@@ -488,13 +518,14 @@ async def _one(name: str, fn) -> tuple[str, dict]:
 async def fast_snapshot() -> dict:
     """Cheap snapshot for the per-second gauge tick.
 
-    Only reads /proc/stat (twice for the cpu delta) and
-    /proc/meminfo. The 200 ms cpu sample is the worst case;
-    total wall time is well under 250 ms. Returns the
-    same shape that snapshot()['system'] would have, plus
-    a 'gathered_at' so the WS payload is self-describing.
+    Calls _system_cheap() (loadavg/mem/swap/cpu only, offloaded via
+    asyncio.to_thread), not g_system() — the full snapshot's
+    disk_data/top_dirs/uptime_s (and top_dirs' `du` subprocesses)
+    stay off the per-second path. 'system' here is a subset of what
+    snapshot()['system'] carries; a 'gathered_at' is included so the
+    WS payload is self-describing.
     """
-    sys = await g_system()
+    sys = await _system_cheap()
     return {
         "system": sys,
         "gathered_at": datetime.now(ZoneInfo("UTC")).isoformat(),
