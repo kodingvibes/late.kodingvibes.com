@@ -1,3 +1,10 @@
+# [1.25.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.24.1...v1.25.0) (2026-07-26)
+
+
+### Features
+
+* **theme:** add .bg-mf-surface shared micro-frontend base ([d9777ff](https://github.com/kodingvibes/late.kodingvibes.com/commit/d9777ffaa4bc302fb86ba3755aadc76c8653fa4b))
+
 ## [1.24.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.24.0...v1.24.1) (2026-07-26)
 
 
