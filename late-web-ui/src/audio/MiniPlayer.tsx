@@ -203,7 +203,7 @@ export default function MiniPlayer() {
             onPointerUp={onGripPointerUp}
             onPointerCancel={onGripPointerUp}
             onDoubleClick={onGripDoubleClick}
-            className="hidden sm:flex flex-col items-center justify-center gap-1 w-6 cursor-grab active:cursor-grabbing border-r border-slate-800/60 hover:bg-slate-800/40 transition-colors touch-none flex-shrink-0 select-none"
+            className="hidden sm:flex flex-col items-center justify-center gap-1 w-6 cursor-grab active:cursor-grabbing border-r border-accent/15 hover:bg-accent/15 transition-colors touch-none flex-shrink-0 select-none"
             aria-label="Arrastrar para mover · Doble clic para colapsar"
             title="Arrastra · Doble clic para colapsar"
             role="button"
@@ -251,7 +251,7 @@ export default function MiniPlayer() {
 
               <button
                 onClick={engine.toggleMute}
-                className="w-8 h-8 rounded-lg text-slate-300 hover:text-slate-100 hover:bg-slate-800 flex items-center justify-center flex-shrink-0 transition-colors"
+                className="w-8 h-8 rounded-lg text-slate-300 hover:text-slate-100 hover:bg-accent/15 flex items-center justify-center flex-shrink-0 transition-colors"
                 aria-label={state.muted ? "Activar sonido" : "Silenciar"}
                 title={state.muted ? "Activar sonido" : "Silenciar"}
               >
@@ -271,7 +271,7 @@ export default function MiniPlayer() {
 
               <button
                 onClick={goPrev}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center flex-shrink-0 transition-all hover:scale-105 active:scale-95 select-none"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-surface-3 hover:bg-surface-2 text-slate-200 flex items-center justify-center flex-shrink-0 transition-all hover:scale-105 active:scale-95 select-none"
                 aria-label="Canal anterior"
                 title="Canal anterior"
               >
@@ -294,7 +294,7 @@ export default function MiniPlayer() {
 
               <button
                 onClick={goNext}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center flex-shrink-0 transition-all hover:scale-105 active:scale-95 select-none"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-surface-3 hover:bg-surface-2 text-slate-200 flex items-center justify-center flex-shrink-0 transition-all hover:scale-105 active:scale-95 select-none"
                 aria-label="Canal siguiente"
                 title="Canal siguiente"
               >
@@ -304,7 +304,7 @@ export default function MiniPlayer() {
               {isDesktop && (
                 <button
                   onClick={() => setFloating(true)}
-                  className="w-7 h-7 rounded-lg text-slate-500 hover:text-slate-100 hover:bg-slate-800 flex items-center justify-center flex-shrink-0 transition-colors"
+                  className="w-7 h-7 rounded-lg text-slate-500 hover:text-slate-100 hover:bg-accent/15 flex items-center justify-center flex-shrink-0 transition-colors"
                   aria-label="Desacoplar y mover"
                   title="Desacoplar · arrastrable"
                 >
@@ -365,7 +365,7 @@ export default function MiniPlayer() {
 
                   <button
                     onClick={engine.toggleMute}
-                    className="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 flex items-center justify-center flex-shrink-0 transition-colors hidden sm:flex"
+                    className="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-accent/15 flex items-center justify-center flex-shrink-0 transition-colors hidden sm:flex"
                     aria-label={state.muted ? "Activar sonido" : "Silenciar"}
                   >
                     {state.muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
@@ -384,7 +384,7 @@ export default function MiniPlayer() {
 
                   <button
                     onClick={() => setFloating(false)}
-                    className="w-7 h-7 rounded-lg text-slate-500 hover:text-slate-100 hover:bg-slate-800 flex items-center justify-center flex-shrink-0 transition-colors"
+                    className="w-7 h-7 rounded-lg text-slate-500 hover:text-slate-100 hover:bg-accent/15 flex items-center justify-center flex-shrink-0 transition-colors"
                     aria-label="Volver a fijar abajo"
                     title="Fijar abajo"
                   >
@@ -393,7 +393,7 @@ export default function MiniPlayer() {
 
                   <button
                     onClick={engine.stop}
-                    className="w-7 h-7 rounded-lg text-slate-500 hover:text-slate-100 hover:bg-slate-800 flex items-center justify-center flex-shrink-0 transition-colors"
+                    className="w-7 h-7 rounded-lg text-slate-500 hover:text-slate-100 hover:bg-accent/15 flex items-center justify-center flex-shrink-0 transition-colors"
                     aria-label="Detener"
                   >
                     <X className="w-4 h-4" />

@@ -155,7 +155,7 @@ export function Profile() {
             type="button"
             onClick={() => navigate(-1)}
             className={`p-2 rounded-lg ${
-              isLight ? "text-slate-600 hover:bg-slate-200" : "text-slate-300 hover:bg-slate-800"
+              isLight ? "text-slate-600 hover:bg-accent/15" : "text-slate-300 hover:bg-accent/15"
             }`}
             aria-label="Volver"
           >
@@ -168,7 +168,7 @@ export function Profile() {
 
         <section
           className={`rounded-2xl border p-6 flex items-center gap-5 backdrop-blur-sm ${
-            isLight ? "bg-white/70 border-slate-300/60" : "bg-surface-2 border-accent/20"
+            isLight ? "bg-white/70 border-accent/15" : "bg-surface-2 border-accent/20"
           }`}
         >
           <UserAvatar src={user.avatar_url} nick={nick} size="lg" className="w-20 h-20 text-xl" />
@@ -188,8 +188,8 @@ export function Profile() {
             onClick={() => setShowNick(true)}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm ${
               isLight
-                ? "border border-slate-300/60 hover:bg-white/70"
-                : "border border-slate-700/60 hover:bg-slate-800/50"
+                ? "border border-accent/15 hover:bg-surface-tint-80"
+                : "border border-accent/20 hover:bg-accent/15"
             }`}
           >
             <Edit3 className="w-4 h-4" />
@@ -199,7 +199,7 @@ export function Profile() {
 
         <section
           className={`rounded-2xl border p-6 space-y-4 backdrop-blur-sm ${
-            isLight ? "bg-white/70 border-slate-300/60" : "bg-surface-2 border-accent/20"
+            isLight ? "bg-white/70 border-accent/15" : "bg-surface-2 border-accent/20"
           }`}
         >
           <h2 className="text-sm font-semibold uppercase tracking-wider opacity-70">Avatar</h2>
@@ -230,8 +230,8 @@ export function Profile() {
                 disabled={uploading || removing}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
                   isLight
-                    ? "border border-slate-300/60 hover:bg-white/70"
-                    : "border border-slate-700/60 hover:bg-slate-800/50"
+                    ? "border border-accent/15 hover:bg-surface-tint-80"
+                    : "border border-accent/20 hover:bg-accent/15"
                 }`}
               >
                 <Trash2 className="w-4 h-4" />
@@ -248,7 +248,7 @@ export function Profile() {
 
         <section
           className={`rounded-2xl border p-6 grid grid-cols-1 sm:grid-cols-2 gap-3 backdrop-blur-sm ${
-            isLight ? "bg-white/70 border-slate-300/60" : "bg-surface-2 border-accent/20"
+            isLight ? "bg-white/70 border-accent/15" : "bg-surface-2 border-accent/20"
           }`}
         >
           <button
@@ -256,8 +256,8 @@ export function Profile() {
             onClick={() => setShowNotif(true)}
             className={`flex items-center gap-3 p-3 rounded-xl text-sm ${
               isLight
-                ? "border border-slate-300/60 hover:bg-white/70"
-                : "border border-slate-700/60 hover:bg-slate-800/50"
+                ? "border border-accent/15 hover:bg-surface-tint-80"
+                : "border border-accent/20 hover:bg-accent/15"
             }`}
           >
             <Bell className="w-4 h-4" />
@@ -268,8 +268,8 @@ export function Profile() {
             onClick={() => setShowTheme(true)}
             className={`flex items-center gap-3 p-3 rounded-xl text-sm ${
               isLight
-                ? "border border-slate-300/60 hover:bg-white/70"
-                : "border border-slate-700/60 hover:bg-slate-800/50"
+                ? "border border-accent/15 hover:bg-surface-tint-80"
+                : "border border-accent/20 hover:bg-accent/15"
             }`}
           >
             <Palette className="w-4 h-4" />

@@ -89,8 +89,8 @@ export function UserMenu() {
           open
             ? "bg-accent/15 ring-1 ring-accent/30"
             : isLight
-            ? "hover:bg-slate-100"
-            : "hover:bg-slate-800"
+            ? "hover:bg-accent/15"
+            : "hover:bg-accent/15"
         }`}
         aria-label="Menú de usuario"
         aria-expanded={open}
@@ -133,7 +133,7 @@ export function UserMenu() {
               to="/profile"
               onClick={() => setOpen(false)}
               className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors ${
-                isLight ? "text-slate-700 hover:bg-slate-100/70" : "text-slate-200 hover:bg-slate-800/50"
+                isLight ? "text-slate-700 hover:bg-accent/15" : "text-slate-200 hover:bg-accent/15"
               }`}
             >
               <UserIcon className="w-4 h-4" />
@@ -146,7 +146,7 @@ export function UserMenu() {
                 setShowNick(true);
               }}
               className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors ${
-                isLight ? "text-slate-700 hover:bg-slate-100/70" : "text-slate-200 hover:bg-slate-800/50"
+                isLight ? "text-slate-700 hover:bg-accent/15" : "text-slate-200 hover:bg-accent/15"
               }`}
             >
               <SettingsIcon className="w-4 h-4" />
@@ -159,7 +159,7 @@ export function UserMenu() {
                 setShowNotif(true);
               }}
               className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors ${
-                isLight ? "text-slate-700 hover:bg-slate-100/70" : "text-slate-200 hover:bg-slate-800/50"
+                isLight ? "text-slate-700 hover:bg-accent/15" : "text-slate-200 hover:bg-accent/15"
               }`}
             >
               <Bell className="w-4 h-4" />
@@ -172,7 +172,7 @@ export function UserMenu() {
                 setShowTheme(true);
               }}
               className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors ${
-                isLight ? "text-slate-700 hover:bg-slate-100/70" : "text-slate-200 hover:bg-slate-800/50"
+                isLight ? "text-slate-700 hover:bg-accent/15" : "text-slate-200 hover:bg-accent/15"
               }`}
             >
               <Palette className="w-4 h-4" />

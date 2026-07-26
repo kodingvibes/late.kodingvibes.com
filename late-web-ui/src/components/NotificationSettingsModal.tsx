@@ -86,14 +86,14 @@ export function NotificationSettingsModal({ open, onClose, onSaved }: Notificati
       <div
         className={`w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden animate-menu-pop backdrop-blur-md ${
           isLight
-            ? "bg-white/80 border-slate-300/60"
+            ? "bg-white/80 border-accent/15"
             : "bg-surface-3 border-accent/25"
         }`}
         onClick={(e) => e.stopPropagation()}
       >
         <div
           className={`flex items-center justify-between px-5 py-3 border-b ${
-            isLight ? "border-slate-300/60" : "border-slate-700/60"
+            isLight ? "border-accent/15" : "border-accent/20"
           }`}
         >
           <h2 className="text-base font-semibold flex items-center gap-2">
@@ -103,7 +103,7 @@ export function NotificationSettingsModal({ open, onClose, onSaved }: Notificati
           <button
             type="button"
             onClick={onClose}
-            className={`p-1 rounded ${isLight ? "text-slate-500 hover:bg-slate-100/70" : "text-slate-400 hover:bg-slate-800/50"}`}
+            className={`p-1 rounded ${isLight ? "text-slate-500 hover:bg-accent/15" : "text-slate-400 hover:bg-accent/15"}`}
             aria-label="Cerrar"
           >
             <X className="w-4 h-4" />
@@ -125,8 +125,8 @@ export function NotificationSettingsModal({ open, onClose, onSaved }: Notificati
                     prefs.mode === m
                       ? "bg-accent/20 border-accent text-accent"
                       : isLight
-                      ? "border-slate-300/60 hover:bg-slate-50/70"
-                      : "border-slate-700/60 hover:bg-slate-800/50"
+                      ? "border-accent/15 hover:bg-surface-tint-60"
+                      : "border-accent/20 hover:bg-accent/15"
                   }`}
                 >
                   {m === "mentions" ? "Menciones" : m === "all" ? "Todo" : "Nada"}
@@ -180,14 +180,14 @@ export function NotificationSettingsModal({ open, onClose, onSaved }: Notificati
 
         <div
           className={`flex justify-end gap-2 px-5 py-3 border-t ${
-            isLight ? "border-slate-300/60 bg-slate-50/70" : "border-accent/20 bg-surface-2"
+            isLight ? "border-accent/15 bg-surface-tint-60" : "border-accent/20 bg-surface-2"
           }`}
         >
           <button
             type="button"
             onClick={onClose}
             className={`px-3 py-1.5 rounded-lg text-sm ${
-              isLight ? "text-slate-700 hover:bg-slate-200/70" : "text-slate-300 hover:bg-slate-800/50"
+              isLight ? "text-slate-700 hover:bg-accent/15" : "text-slate-300 hover:bg-accent/15"
             }`}
           >
             Cancelar

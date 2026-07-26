@@ -52,8 +52,8 @@ export default function SiteHeader() {
   }, []);
 
   const baseLink = isLight
-    ? "text-slate-500 hover:text-slate-900 hover:bg-slate-200"
-    : "text-slate-400 hover:text-slate-100 hover:bg-slate-800";
+    ? "text-slate-500 hover:text-slate-900 hover:bg-surface-tint-60"
+    : "text-slate-400 hover:text-slate-100 hover:bg-accent/15";
   const activeLink =
     "bg-accent/15 text-accent ring-1 ring-accent/30 shadow-accent";
 
@@ -112,7 +112,7 @@ export default function SiteHeader() {
                 isChat
                   ? "bg-accent/30 text-accent"
                   : isLight
-                  ? "bg-slate-200 text-slate-700"
+                  ? "bg-surface-tint-60 text-slate-700"
                   : "bg-slate-800 text-slate-200"
               } ${onlineCount === null ? "opacity-50" : ""}`}
               title={onlineCount === null ? "sin conexión" : `${onlineCount} en línea`}
@@ -161,7 +161,7 @@ export default function SiteHeader() {
                   to="/icecast"
                   onClick={() => setHamburgerOpen(false)}
                   className={`flex items-center gap-2 px-3 py-2 text-sm rounded-t-xl transition-colors ${
-                    isLight ? "hover:bg-slate-100" : "hover:bg-slate-800"
+                    isLight ? "hover:bg-accent/15" : "hover:bg-accent/15"
                   } ${isRadio ? "text-accent" : ""}`}
                 >
                   <Radio className="w-4 h-4" />
@@ -171,14 +171,14 @@ export default function SiteHeader() {
                   to="/irc"
                   onClick={() => setHamburgerOpen(false)}
                   className={`flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
-                    isLight ? "hover:bg-slate-100" : "hover:bg-slate-800"
+                    isLight ? "hover:bg-accent/15" : "hover:bg-accent/15"
                   } ${isChat ? "text-accent" : ""}`}
                 >
                   <MessageCircle className="w-4 h-4" />
                   Chat
                   <span
                     className={`ml-auto text-[10px] tabular-nums font-semibold px-1.5 py-0.5 rounded-full ${
-                      isLight ? "bg-slate-200 text-slate-700" : "bg-slate-800 text-slate-200"
+                      isLight ? "bg-surface-tint-60 text-slate-700" : "bg-slate-800 text-slate-200"
                     } ${onlineCount === null ? "opacity-50" : ""}`}
                   >
                     {onlineCount ?? "—"}
@@ -188,7 +188,7 @@ export default function SiteHeader() {
                   to="/games"
                   onClick={() => setHamburgerOpen(false)}
                   className={`flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
-                    isLight ? "hover:bg-slate-100" : "hover:bg-slate-800"
+                    isLight ? "hover:bg-accent/15" : "hover:bg-accent/15"
                   } ${isGames ? "text-accent" : ""}`}
                 >
                   <Gamepad2 className="w-4 h-4" />
@@ -199,7 +199,7 @@ export default function SiteHeader() {
                   to="/profiles"
                   onClick={() => setHamburgerOpen(false)}
                   className={`flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
-                    isLight ? "hover:bg-slate-100" : "hover:bg-slate-800"
+                    isLight ? "hover:bg-accent/15" : "hover:bg-accent/15"
                   } ${loc.pathname === "/profiles" ? "text-accent" : ""}`}
                 >
                   <UserCircle className="w-4 h-4" />
@@ -209,7 +209,7 @@ export default function SiteHeader() {
                   to="/freelance"
                   onClick={() => setHamburgerOpen(false)}
                   className={`flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
-                    isLight ? "hover:bg-slate-100" : "hover:bg-slate-800"
+                    isLight ? "hover:bg-accent/15" : "hover:bg-accent/15"
                   } ${loc.pathname === "/freelance" ? "text-accent" : ""}`}
                 >
                   <Briefcase className="w-4 h-4" />
@@ -219,7 +219,7 @@ export default function SiteHeader() {
                   to="/forum"
                   onClick={() => setHamburgerOpen(false)}
                   className={`flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
-                    isLight ? "hover:bg-slate-100" : "hover:bg-slate-800"
+                    isLight ? "hover:bg-accent/15" : "hover:bg-accent/15"
                   } ${loc.pathname === "/forum" ? "text-accent" : ""}`}
                 >
                   <MessageSquareQuote className="w-4 h-4" />
@@ -229,7 +229,7 @@ export default function SiteHeader() {
                   to="/trivia"
                   onClick={() => setHamburgerOpen(false)}
                   className={`flex items-center gap-2 px-3 py-2 text-sm rounded-b-xl transition-colors ${
-                    isLight ? "hover:bg-slate-100" : "hover:bg-slate-800"
+                    isLight ? "hover:bg-accent/15" : "hover:bg-accent/15"
                   } ${loc.pathname === "/trivia" ? "text-accent" : ""}`}
                 >
                   <Sparkles className="w-4 h-4" />
