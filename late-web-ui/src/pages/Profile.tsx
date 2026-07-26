@@ -168,7 +168,7 @@ export function Profile() {
 
         <section
           className={`rounded-2xl border p-6 flex items-center gap-5 backdrop-blur-sm ${
-            isLight ? "bg-white/70 border-slate-300/60" : "bg-slate-900/60 border-slate-700/60"
+            isLight ? "bg-white/70 border-slate-300/60" : "bg-surface-2 border-accent/20"
           }`}
         >
           <UserAvatar src={user.avatar_url} nick={nick} size="lg" className="w-20 h-20 text-xl" />
@@ -199,7 +199,7 @@ export function Profile() {
 
         <section
           className={`rounded-2xl border p-6 space-y-4 backdrop-blur-sm ${
-            isLight ? "bg-white/70 border-slate-300/60" : "bg-slate-900/60 border-slate-700/60"
+            isLight ? "bg-white/70 border-slate-300/60" : "bg-surface-2 border-accent/20"
           }`}
         >
           <h2 className="text-sm font-semibold uppercase tracking-wider opacity-70">Avatar</h2>
@@ -248,7 +248,7 @@ export function Profile() {
 
         <section
           className={`rounded-2xl border p-6 grid grid-cols-1 sm:grid-cols-2 gap-3 backdrop-blur-sm ${
-            isLight ? "bg-white/70 border-slate-300/60" : "bg-slate-900/60 border-slate-700/60"
+            isLight ? "bg-white/70 border-slate-300/60" : "bg-surface-2 border-accent/20"
           }`}
         >
           <button

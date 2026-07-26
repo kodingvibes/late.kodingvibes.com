@@ -63,7 +63,7 @@ export function NickPromptModal({ open, initialValue, onClose, onSaved }: NickPr
     >
       <div
         className={`w-full max-w-sm rounded-2xl border shadow-2xl overflow-hidden animate-menu-pop backdrop-blur-md ${
-          isLight ? "bg-white/80 border-slate-300/60" : "bg-slate-900/75 border-slate-700/60"
+          isLight ? "bg-white/80 border-slate-300/60" : "bg-surface-3 border-accent/25"
         }`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -99,7 +99,7 @@ export function NickPromptModal({ open, initialValue, onClose, onSaved }: NickPr
             className={`w-full px-3 py-2 rounded-lg border text-sm font-mono focus:outline-none focus:border-accent ${
               isLight
                 ? "bg-slate-50/70 border-slate-300/60"
-                : "bg-slate-950/50 border-slate-700/60"
+                : "bg-surface-1 border-accent/20"
             }`}
             placeholder="nuevo-nick"
             maxLength={32}
@@ -108,7 +108,7 @@ export function NickPromptModal({ open, initialValue, onClose, onSaved }: NickPr
         </div>
         <div
           className={`flex justify-end gap-2 px-5 py-3 border-t ${
-            isLight ? "border-slate-300/60 bg-slate-50/70" : "border-slate-700/60 bg-slate-900/60"
+            isLight ? "border-slate-300/60 bg-slate-50/70" : "border-accent/20 bg-surface-2"
           }`}
         >
           <button

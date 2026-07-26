@@ -87,7 +87,7 @@ export function NotificationSettingsModal({ open, onClose, onSaved }: Notificati
         className={`w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden animate-menu-pop backdrop-blur-md ${
           isLight
             ? "bg-white/80 border-slate-300/60"
-            : "bg-slate-900/75 border-slate-700/60"
+            : "bg-surface-3 border-accent/25"
         }`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -180,7 +180,7 @@ export function NotificationSettingsModal({ open, onClose, onSaved }: Notificati
 
         <div
           className={`flex justify-end gap-2 px-5 py-3 border-t ${
-            isLight ? "border-slate-300/60 bg-slate-50/70" : "border-slate-700/60 bg-slate-900/60"
+            isLight ? "border-slate-300/60 bg-slate-50/70" : "border-accent/20 bg-surface-2"
           }`}
         >
           <button

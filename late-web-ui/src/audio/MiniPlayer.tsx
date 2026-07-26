@@ -192,8 +192,8 @@ export default function MiniPlayer() {
       <div
         className={
           isPinned
-            ? "bg-slate-900/90 backdrop-blur border-t border-slate-700/60 shadow-2xl overflow-hidden flex"
-            : "bg-slate-900/90 backdrop-blur border border-slate-700/60 rounded-2xl shadow-2xl overflow-hidden flex"
+            ? "bg-surface-3 backdrop-blur border-t border-accent/30 shadow-2xl overflow-hidden flex"
+            : "bg-surface-3 backdrop-blur border border-accent/30 rounded-2xl shadow-2xl overflow-hidden flex"
         }
       >
         {!isPinned && (

@@ -111,7 +111,7 @@ export function UserMenu() {
           className={`absolute right-0 mt-2 w-64 rounded-xl border shadow-accent overflow-hidden z-50 animate-menu-drop backdrop-blur-md ${
             isLight
               ? "bg-white/75 border-accent/30"
-              : "bg-slate-900/75 border-accent/30"
+              : "bg-surface-3 border-accent/30"
           }`}
         >
           <div

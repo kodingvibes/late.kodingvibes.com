@@ -38,7 +38,7 @@ export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
       <div
         ref={ref}
         className={`w-full max-w-sm rounded-2xl border shadow-2xl overflow-hidden animate-menu-pop backdrop-blur-md ${
-          isLight ? "bg-white/80 border-slate-300/60" : "bg-slate-900/75 border-slate-700/60"
+          isLight ? "bg-white/80 border-slate-300/60" : "bg-surface-3 border-accent/25"
         }`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -116,7 +116,7 @@ export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
 
         <div
           className={`flex justify-end px-5 py-3 border-t ${
-            isLight ? "border-slate-300/60 bg-slate-50/70" : "border-slate-700/60 bg-slate-900/60"
+            isLight ? "border-slate-300/60 bg-slate-50/70" : "border-accent/20 bg-surface-2"
           }`}
         >
           <button

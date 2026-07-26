@@ -62,7 +62,7 @@ export default function SiteHeader() {
       className={`sticky top-0 z-40 backdrop-blur border-b ${
         isLight
           ? "bg-white/70 border-accent/25"
-          : "bg-slate-950/90 border-accent/25"
+          : "bg-surface-3 border-accent/25"
       }`}
     >
       <div className="max-w-7xl mx-auto px-3 sm:px-6 h-11 sm:h-14 flex items-center justify-between gap-2 sm:gap-3">
