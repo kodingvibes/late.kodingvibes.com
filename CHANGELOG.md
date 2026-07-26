@@ -1,3 +1,10 @@
+# [1.23.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.22.1...v1.23.0) (2026-07-26)
+
+
+### Features
+
+* add Juegos link to SiteHeader, hamburger menu on mobile ([8b1dda0](https://github.com/kodingvibes/late.kodingvibes.com/commit/8b1dda0b7eb4688932516decf674a267ceccef40))
+
 ## [1.22.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.22.0...v1.22.1) (2026-07-26)
 
 
