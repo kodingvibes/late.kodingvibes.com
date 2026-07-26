@@ -146,7 +146,7 @@ export function Profile() {
        * tracks --accent-primary so picking rose / amber /
        * emerald actually tints the backdrop. */}
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-[420px] -z-10 bg-accent-glow"
+        className={`pointer-events-none absolute inset-x-0 top-0 h-[420px] -z-10 ${isLight ? "bg-accent-glow" : "bg-accent-glow opacity-20"}`}
         aria-hidden="true"
       />
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6 animate-menu-up">

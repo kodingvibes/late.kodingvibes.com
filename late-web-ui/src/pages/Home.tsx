@@ -26,16 +26,16 @@ export function Home() {
 
   return (
     <div className={`relative min-h-screen ${isLight ? "text-slate-900" : "text-slate-100"} pb-24`}>
-      {/* ponytail: a faint accent halo behind the page title so
-       * the chosen colour bleeds into the surface without
-       * hijacking the whole backdrop. The radial gradient
-       * picks up the live --accent-primary from the theme
-       * provider, so picking rose / emerald / amber actually
-       * tints the page. */}
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-[480px] -z-10 bg-accent-glow"
-        aria-hidden="true"
-      />
+      {/* ponytail: subtle accent halo behind the page title. Skipped in
+       * dark mode because the page surface already reads black-slate
+       * and the glow was the only thing painting colour behind the
+       * content. The accent still bleeds in through cards / icons. */}
+      {isLight && (
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-[480px] -z-10 bg-accent-glow"
+          aria-hidden="true"
+        />
+      )}
       <section className="max-w-5xl mx-auto px-4 sm:px-6 pt-10 sm:pt-16 pb-8 sm:pb-12">
         <h1 className="text-3xl sm:text-5xl font-bold tracking-tight mb-3">
           un rinconcito comfy, tarde en la noche
@@ -56,7 +56,7 @@ export function Home() {
             className={`group block rounded-2xl border p-5 transition-colors ${
               isLight
                 ? "border-slate-300/60 bg-white/70 hover:border-accent/50 hover:bg-white/90"
-                : "border-slate-700/60 bg-slate-900/40 hover:border-accent/50 hover:bg-slate-900/70"
+                : "border-slate-700/60 bg-slate-900/70 hover:border-accent/50 hover:bg-slate-900/85"
             }`}
           >
             <div className="flex items-center gap-2 mb-2">
@@ -74,7 +74,7 @@ export function Home() {
             className={`group block rounded-2xl border p-5 transition-colors ${
               isLight
                 ? "border-slate-300/60 bg-white/70 hover:border-accent/50 hover:bg-white/90"
-                : "border-slate-700/60 bg-slate-900/40 hover:border-accent/50 hover:bg-slate-900/70"
+                : "border-slate-700/60 bg-slate-900/70 hover:border-accent/50 hover:bg-slate-900/85"
             }`}
           >
             <div className="flex items-center gap-2 mb-2">
@@ -109,7 +109,7 @@ export function Home() {
               className={`group flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${
               isLight
                 ? "border-slate-300/60 bg-white/70 hover:border-accent/40 hover:bg-white/90"
-                : "border-slate-700/60 bg-slate-900/40 hover:border-accent/40 hover:bg-slate-900/70"
+                : "border-slate-700/60 bg-slate-900/70 hover:border-accent/40 hover:bg-slate-900/85"
               }`}
             >
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-lg bg-accent/20 ${s.accent || "text-accent"}`}>
