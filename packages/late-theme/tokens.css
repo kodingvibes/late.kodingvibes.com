@@ -66,18 +66,8 @@ html {
 
 body {
   margin: 0;
-  background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 45%, #020617);
-  background-image:
-    radial-gradient(
-      ellipse 85% 65% at 20% 0%,
-      var(--accent-glow-a, rgba(99, 102, 241, 0.35)) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      ellipse 75% 55% at 85% 100%,
-      var(--accent-glow-b, rgba(99, 102, 241, 0.22)) 0%,
-      transparent 50%
-    );
+  background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 25%, #020617);
+  background-image: none;
   background-attachment: fixed;
   background-repeat: no-repeat;
   color: #f8fafc;
@@ -87,18 +77,8 @@ body {
 }
 
 :root.theme-light body {
-  background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 30%, #f8fafc);
-  background-image:
-    radial-gradient(
-      ellipse 85% 65% at 20% 0%,
-      var(--accent-glow-a-light, rgba(79, 70, 229, 0.30)) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      ellipse 75% 55% at 85% 100%,
-      var(--accent-glow-b-light, rgba(99, 102, 241, 0.18)) 0%,
-      transparent 50%
-    );
+  background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 25%, #f8fafc);
+  background-image: none;
   color: #0f172a;
 }
 
