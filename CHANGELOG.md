@@ -1,3 +1,17 @@
+# [1.24.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.23.1...v1.24.0) (2026-07-26)
+
+
+### Bug Fixes
+
+* **shell:** pin background to html, body + root grow with content ([a59ac39](https://github.com/kodingvibes/late.kodingvibes.com/commit/a59ac39001caf1d061e47c79fc272f47b053f751))
+* **theme:** tone down accent-tinted body and remove decorative glows ([94f70e4](https://github.com/kodingvibes/late.kodingvibes.com/commit/94f70e4b507b633a3fd1e4a3607a7d8e9ee87cb8)), closes [#020617](https://github.com/kodingvibes/late.kodingvibes.com/issues/020617) [#f8fafc](https://github.com/kodingvibes/late.kodingvibes.com/issues/f8fafc)
+
+
+### Features
+
+* **deployd:** add bootstrap for 5 micros and their build scripts ([02f344a](https://github.com/kodingvibes/late.kodingvibes.com/commit/02f344aeba0e1401a6a5a0c1b4b6dbf9d4c05935))
+* **deployd:** auto-clone missing micros + register new deployers ([b744809](https://github.com/kodingvibes/late.kodingvibes.com/commit/b744809fc95d4208944e6d89ab15d98bf518ca85))
+
 ## [1.23.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.23.0...v1.23.1) (2026-07-26)
 
 
