@@ -297,6 +297,18 @@ input[type="range"] {
   background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 6%, #ffffff);
 }
 
+/* Ponytail: shared micro-frontend surface. The shell owns the
+ * document background; each micro wraps its UI in this so the
+ * page reads as one canvas while the micro keeps its accent
+ * tint. New micros should reach for .bg-mf-surface instead of
+ * .bg-slate-950 / .bg-black. */
+.bg-mf-surface {
+  background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 6%, #020617);
+}
+:root.theme-light .bg-mf-surface {
+  background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 6%, #ffffff);
+}
+
 /* Component classes. */
 .kv-card {
   background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 6%, #0f172a);
