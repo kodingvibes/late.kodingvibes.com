@@ -1,3 +1,10 @@
+## [1.24.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.24.0...v1.24.1) (2026-07-26)
+
+
+### Bug Fixes
+
+* **theme:** lift body reset to :root body for higher specificity ([314bb59](https://github.com/kodingvibes/late.kodingvibes.com/commit/314bb590667f28507fee95ab38b91763a718bf15)), closes [#2E3179](https://github.com/kodingvibes/late.kodingvibes.com/issues/2E3179) [#020617](https://github.com/kodingvibes/late.kodingvibes.com/issues/020617)
+
 # [1.24.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.23.1...v1.24.0) (2026-07-26)
 
 
