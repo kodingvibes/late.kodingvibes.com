@@ -40,3 +40,36 @@ late-web-ui/vite.config.d.ts
 chat_dumps/
 services/chat-bridge/.coverage
 services/chat-bridge/.venv/
+
+# Felipe's private working notes/reports — never committed.
+docs/felipe/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# Build output / coverage (late-web-ui and any future package)
+dist/
+build/
+coverage/
+.nyc_output/
+
+# Python (services/deployd and friends)
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+*.egg-info/
