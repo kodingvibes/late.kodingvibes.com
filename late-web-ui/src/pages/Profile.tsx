@@ -17,6 +17,13 @@ import { ArrowLeft, Bell, Edit3, LogOut, Palette, Trash2, Upload } from "lucide-
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 const ALLOWED_AVATAR_MIME = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"];
 
+// Can't reuse lib/chat-session.ts's api() helper here — it hardcodes
+// Content-Type: application/json, which would break the multipart FormData body.
+function authHeaders(): HeadersInit | undefined {
+  const sessionId = getSavedSession()?.session_id;
+  return sessionId ? { Authorization: `Bearer ${sessionId}` } : undefined;
+}
+
 export function Profile() {
   const { mode } = useTheme();
   const isLight = mode === "light";
@@ -94,6 +101,7 @@ export function Profile() {
       form.append("file", file);
       const res = await fetch("/api/auth/me/avatar", {
         method: "POST",
+        headers: authHeaders(),
         body: form,
       });
       if (!res.ok) {
@@ -113,7 +121,7 @@ export function Profile() {
     setError(null);
     setRemoving(true);
     try {
-      const res = await fetch("/api/auth/me/avatar", { method: "DELETE" });
+      const res = await fetch("/api/auth/me/avatar", { method: "DELETE", headers: authHeaders() });
       if (!res.ok) {
         const detail = await res.json().catch(() => ({}));
         throw new Error(detail.detail || `remove failed: ${res.status}`);
