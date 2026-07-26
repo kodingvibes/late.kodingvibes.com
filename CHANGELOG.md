@@ -1,3 +1,10 @@
+## [1.23.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.23.0...v1.23.1) (2026-07-26)
+
+
+### Bug Fixes
+
+* inject new microfront scripts (profiles, freelance, games, forum, trivia) into index.html ([a2ceaaa](https://github.com/kodingvibes/late.kodingvibes.com/commit/a2ceaaabfbcb0e7a0fac5a5ff51a9ac0f2d4803c))
+
 # [1.23.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.22.1...v1.23.0) (2026-07-26)
 
 
