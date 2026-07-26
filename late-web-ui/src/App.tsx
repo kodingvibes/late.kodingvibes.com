@@ -11,10 +11,15 @@ import { Profile } from "@/pages/Profile";
 import useViewportHeight from "@/lib/use-viewport-height";
 
 // Each route renders a microfront slot. The actual UI lives in
-// /micro/{radio,chat,dashboard}/latest/entry.js (see vite.config.ts microfrontsPlugin).
-const Icecast = lazy(() => import("@/pages/Icecast").then((m) => ({ default: m.Icecast })));
-const Irc     = lazy(() => import("@/pages/Irc").then((m) => ({ default: m.Irc })));
+// /micro/{radio,chat,dashboard,profiles,freelance,games,forum,trivia}/latest/entry.js
+const Icecast   = lazy(() => import("@/pages/Icecast").then((m) => ({ default: m.Icecast })));
+const Irc       = lazy(() => import("@/pages/Irc").then((m) => ({ default: m.Irc })));
 const Dashboard = lazy(() => import("@/pages/Dashboard").then((m) => ({ default: m.Dashboard })));
+const Profiles  = lazy(() => import("@/pages/Profiles").then((m) => ({ default: m.Profiles })));
+const Freelance = lazy(() => import("@/pages/Freelance").then((m) => ({ default: m.Freelance })));
+const Games     = lazy(() => import("@/pages/Games").then((m) => ({ default: m.Games })));
+const Forum     = lazy(() => import("@/pages/Forum").then((m) => ({ default: m.Forum })));
+const Trivia    = lazy(() => import("@/pages/Trivia").then((m) => ({ default: m.Trivia })));
 
 // ponytail: a micro might still be downloading on first navigation. The
 // shell has no signal that the micro is "ready" beyond "did the React
@@ -51,6 +56,11 @@ function microReady(pathname: string): boolean {
         (window as unknown as { LateSession?: unknown }).LateSession,
     );
   if (pathname === "/dashboard") return Boolean(window.DashboardEngine);
+  if (pathname === "/profiles")  return Boolean(window.ProfilesEngine);
+  if (pathname === "/freelance") return Boolean(window.FreelanceEngine);
+  if (pathname === "/games")     return Boolean(window.GamesEngine);
+  if (pathname === "/forum")     return Boolean(window.ForumEngine);
+  if (pathname === "/trivia")    return Boolean(window.TriviaEngine);
   return true;
 }
 
@@ -80,6 +90,11 @@ export function App() {
             <Route path="/irc" element={<><Irc /><MicroLoader /></>} />
             <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
             <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+            <Route path="/profiles" element={<><Profiles /><MicroLoader /></>} />
+            <Route path="/freelance" element={<><Freelance /><MicroLoader /></>} />
+            <Route path="/games" element={<><Games /><MicroLoader /></>} />
+            <Route path="/forum" element={<RequireAuth><Forum /><MicroLoader /></RequireAuth>} />
+            <Route path="/trivia" element={<><Trivia /><MicroLoader /></>} />
           </Routes>
         </Suspense>
         {/* ponytail: MiniPlayer is global, outside the router. It subscribes

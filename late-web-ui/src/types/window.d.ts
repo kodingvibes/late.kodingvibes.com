@@ -31,7 +31,17 @@ declare global {
     LateTheme?: LateTheme;
     DashboardEngine?: { version: string };
     ChatEngine?: ChatEngineAPI;
+    ProfilesEngine?: { version: string };
+    FreelanceEngine?: { version: string };
+    GamesEngine?: { version: string };
+    ForumEngine?: { version: string };
+    TriviaEngine?: { version: string };
     __lateMicroDashboardMount?: () => void;
+    __lateMicroProfilesMount?: () => void;
+    __lateMicroFreelanceMount?: () => void;
+    __lateMicroGamesMount?: () => void;
+    __lateMicroForumMount?: () => void;
+    __lateMicroTriviaMount?: () => void;
   }
 }
 
