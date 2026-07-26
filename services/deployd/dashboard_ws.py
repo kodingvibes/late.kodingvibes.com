@@ -56,11 +56,12 @@ async def api_dashboard_history(
         raise HTTPException(400, f"unknown range: {range}")
     if metric not in ("cpu", "memory", "swap", "listeners", "latency_ms", "load_1m"):
         raise HTTPException(400, f"unknown metric: {metric}")
+    samples = await dashboard_state.history(metric, range_seconds)
     return JSONResponse({
         "metric": metric,
         "range": range,
         "range_seconds": range_seconds,
-        "samples": dashboard_state.history(metric, range_seconds),
+        "samples": samples,
         "fetched_at": time.time(),
     })
 
@@ -108,26 +109,23 @@ async def _broadcast_loop() -> None:
     while True:
         try:
             snap = await dashboard_state.snapshot()
+            # Small 1h history backfill on every tick so the chart can
+            # render without an extra /api/dashboard/history call on
+            # connect. Sequential awaits (not gather) so the roll()
+            # throttle inside history() never runs from two threads at once.
+            hist_1h = {
+                "cpu": await dashboard_state.history("cpu", 3600),
+                "memory": await dashboard_state.history("memory", 3600),
+                "swap": await dashboard_state.history("swap", 3600),
+                "listeners": await dashboard_state.history("listeners", 3600),
+                "latency_ms": await dashboard_state.history("latency_ms", 3600),
+                "load_1m": await dashboard_state.history("load_1m", 3600),
+            }
             payload = {
                 "type": "state",
                 "t": time.time(),
                 "state": snap,
-                # ponytail: send a small history backfill on
-                # every tick so the chart can render without
-                # an extra /api/dashboard/history call on
-                # connect. 1h covers the default range. A
-                # user who picks 7d or 30d issues an extra
-                # history fetch.
-                "history": {
-                    "1h": {
-                        "cpu": dashboard_state.history("cpu", 3600),
-                        "memory": dashboard_state.history("memory", 3600),
-                        "swap": dashboard_state.history("swap", 3600),
-                        "listeners": dashboard_state.history("listeners", 3600),
-                        "latency_ms": dashboard_state.history("latency_ms", 3600),
-                        "load_1m": dashboard_state.history("load_1m", 3600),
-                    },
-                },
+                "history": {"1h": hist_1h},
             }
             HUB.last_broadcast = time.time()
             await HUB.broadcast(payload)
@@ -164,22 +162,21 @@ async def _broadcast_fast_loop() -> None:
             swap = sys.get("swap", {}) or {}
             if swap.get("pct") is not None:
                 dashboard_history.append_sample("swap", swap["pct"])
+            hist_1m = {
+                "cpu": await dashboard_state.history("cpu", 60),
+                "memory": await dashboard_state.history("memory", 60),
+                "swap": await dashboard_state.history("swap", 60),
+            }
+            hist_5m = {
+                "cpu": await dashboard_state.history("cpu", 300),
+                "memory": await dashboard_state.history("memory", 300),
+                "swap": await dashboard_state.history("swap", 300),
+            }
             payload = {
                 "type": "state_fast",
                 "t": time.time(),
                 "state": fast,
-                "history": {
-                    "1m": {
-                        "cpu": dashboard_state.history("cpu", 60),
-                        "memory": dashboard_state.history("memory", 60),
-                        "swap": dashboard_state.history("swap", 60),
-                    },
-                    "5m": {
-                        "cpu": dashboard_state.history("cpu", 300),
-                        "memory": dashboard_state.history("memory", 300),
-                        "swap": dashboard_state.history("swap", 300),
-                    },
-                },
+                "history": {"1m": hist_1m, "5m": hist_5m},
             }
             await HUB.broadcast(payload)
         except asyncio.CancelledError:

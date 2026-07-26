@@ -537,9 +537,28 @@ async def snapshot() -> dict:
     return out
 
 
-def history(metric: str, range_seconds: int) -> list[dict]:
-    """Return time-series samples for a metric in a range."""
+_last_roll = 0.0
+# roll() scans every metric's .jsonl file; retention is 31 days, so
+# rolling more often than this is pointless work.
+ROLL_INTERVAL_S = 60.0
+
+
+def _history_sync(metric: str, range_seconds: int) -> list[dict]:
+    global _last_roll
+    now = time.time()
+    if now - _last_roll > ROLL_INTERVAL_S:
+        dashboard_history.roll()
+        _last_roll = now
+    return dashboard_history.read_samples(metric, range_seconds)
+
+
+async def history(metric: str, range_seconds: int) -> list[dict]:
+    """Return time-series samples for a metric in a range.
+
+    Offloaded to a thread: roll()/read_samples() do blocking file I/O,
+    and the broadcast loops in dashboard_ws.py call this several times
+    per tick — running it inline was stalling the event loop.
+    """
     if metric not in ("cpu", "memory", "swap", "listeners", "latency_ms", "load_1m"):
         return []
-    dashboard_history.roll()
-    return dashboard_history.read_samples(metric, range_seconds)
+    return await asyncio.to_thread(_history_sync, metric, range_seconds)
