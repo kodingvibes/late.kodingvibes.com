@@ -1,3 +1,12 @@
+## [1.22.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.22.0...v1.22.1) (2026-07-26)
+
+
+### Bug Fixes
+
+* **deployd:** stop blocking the event loop in dashboard history ([aee78bc](https://github.com/kodingvibes/late.kodingvibes.com/commit/aee78bc80c232aaffef044f8b1d6753b44134e57))
+* **deployd:** stop blocking the event loop in system/docker gatherers ([63f8a78](https://github.com/kodingvibes/late.kodingvibes.com/commit/63f8a7868a686536cba3972be57b05a64a541dce))
+* **profile:** send bearer token on avatar upload/remove ([153ec14](https://github.com/kodingvibes/late.kodingvibes.com/commit/153ec1404e082ede098141fb2d114ee73799b549))
+
 # [1.22.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.21.1...v1.22.0) (2026-07-25)
 
 
