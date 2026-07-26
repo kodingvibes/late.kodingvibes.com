@@ -51,11 +51,6 @@
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
-:root {
-  color-scheme: dark;
-  --vh: 1vh;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -64,9 +59,19 @@ html {
   scroll-behavior: smooth;
 }
 
-body {
+:root {
+  color-scheme: dark;
+  --vh: 1vh;
+}
+
+/* ponytail: body rules use :root body selector for higher
+ * specificity (0,1,1) than the bare `body` rule (0,0,1) that
+ * each microfront's bundled CSS brings. The shell is the only
+ * scope that owns the page-level reset; the micros handle
+ * specific UI inside their root div. */
+:root body {
   margin: 0;
-  background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 25%, #020617);
+  background-color: #020617;
   background-image: none;
   background-attachment: fixed;
   background-repeat: no-repeat;
@@ -77,7 +82,7 @@ body {
 }
 
 :root.theme-light body {
-  background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 25%, #f8fafc);
+  background-color: #f8fafc;
   background-image: none;
   color: #0f172a;
 }
@@ -235,12 +240,12 @@ input[type="range"] {
   background-image:
     radial-gradient(
       ellipse 80% 50% at 50% 0%,
-      var(--accent-glow-a, rgba(99, 102, 241, 0.18)) 0%,
+      var(--accent-glow-a, rgba(99, 102, 241, 0.08)) 0%,
       transparent 70%
     ),
     radial-gradient(
       ellipse 60% 40% at 80% 100%,
-      var(--accent-glow-b, rgba(99, 102, 241, 0.12)) 0%,
+      var(--accent-glow-b, rgba(99, 102, 241, 0.05)) 0%,
       transparent 70%
     );
 }
@@ -248,12 +253,12 @@ input[type="range"] {
   background-image:
     radial-gradient(
       ellipse 80% 50% at 50% 0%,
-      var(--accent-glow-a-light, rgba(79, 70, 229, 0.16)) 0%,
+      var(--accent-glow-a-light, rgba(79, 70, 229, 0.10)) 0%,
       transparent 70%
     ),
     radial-gradient(
       ellipse 60% 40% at 80% 100%,
-      var(--accent-glow-b-light, rgba(99, 102, 241, 0.10)) 0%,
+      var(--accent-glow-b-light, rgba(99, 102, 241, 0.06)) 0%,
       transparent 70%
     );
 }
@@ -275,13 +280,13 @@ input[type="range"] {
 /* Accent shadow rings. */
 .shadow-accent {
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--accent-primary, #6366f1) 40%, transparent),
-    0 8px 24px -8px color-mix(in srgb, var(--accent-primary, #6366f1) 30%, transparent);
+    0 0 0 1px color-mix(in srgb, var(--accent-primary, #6366f1) 20%, transparent),
+    0 8px 24px -12px color-mix(in srgb, var(--accent-primary, #6366f1) 12%, transparent);
 }
 .shadow-accent-lg {
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--accent-primary, #6366f1) 50%, transparent),
-    0 20px 40px -12px color-mix(in srgb, var(--accent-primary, #6366f1) 40%, transparent);
+    0 0 0 1px color-mix(in srgb, var(--accent-primary, #6366f1) 25%, transparent),
+    0 20px 40px -16px color-mix(in srgb, var(--accent-primary, #6366f1) 16%, transparent);
 }
 
 /* Chat-specific accent-tinted surface. */
