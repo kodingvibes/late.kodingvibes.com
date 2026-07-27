@@ -7,7 +7,7 @@ import { RequireAuth } from "@/components/RequireAuth";
 export function Icecast() {
   return (
     <RequireAuth mountSlot={<div id="micro-radio-root" />}>
-      <div id="micro-radio-root" />
+      <div id="micro-radio-root" className="w-full h-full" />
     </RequireAuth>
   );
 }

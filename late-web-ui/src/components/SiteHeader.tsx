@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Radio, MessageCircle, Briefcase, Gamepad2, MessageSquareQuote, Sparkles, Menu, X } from "lucide-react";
+import { Radio, MessageCircle, Gamepad2, Menu, X } from "lucide-react";
 import { useEffect, useState, useRef, type ReactNode } from "react";
 import { CoffeeIcon } from "./AppLoader";
 import { UserMenu } from "./UserMenu";
@@ -44,9 +44,6 @@ export default function SiteHeader() {
   const isChat = loc.pathname.startsWith("/irc");
   const isRadio = loc.pathname.startsWith("/icecast");
   const isGames = loc.pathname.startsWith("/games");
-  const isApps = ["/profiles", "/freelance", "/forum", "/trivia"].some((p) =>
-    loc.pathname.startsWith(p),
-  );
 
   // close hamburger on route change
   useEffect(() => {
@@ -142,7 +139,7 @@ export default function SiteHeader() {
               onClick={() => setHamburgerOpen(!hamburgerOpen)}
               aria-label="Menú"
               className={`flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${
-                hamburgerOpen || isRadio || isChat || isGames || isApps ? activeLink : baseLink
+                hamburgerOpen || isRadio || isChat || isGames ? activeLink : baseLink
               }`}
             >
               {hamburgerOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
@@ -181,42 +178,12 @@ export default function SiteHeader() {
                 <Link
                   to="/games"
                   onClick={() => setHamburgerOpen(false)}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
+                  className={`flex items-center gap-2 px-3 py-2 text-sm rounded-b-xl transition-colors ${
                     isLight ? "hover:bg-accent/15" : "hover:bg-accent/15"
                   } ${isGames ? "text-accent" : ""}`}
                 >
                   <Gamepad2 className="w-4 h-4" />
                   Juegos
-                </Link>
-                <Link
-                  to="/freelance"
-                  onClick={() => setHamburgerOpen(false)}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
-                    isLight ? "hover:bg-accent/15" : "hover:bg-accent/15"
-                  } ${loc.pathname === "/freelance" ? "text-accent" : ""}`}
-                >
-                  <Briefcase className="w-4 h-4" />
-                  Freelance
-                </Link>
-                <Link
-                  to="/forum"
-                  onClick={() => setHamburgerOpen(false)}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
-                    isLight ? "hover:bg-accent/15" : "hover:bg-accent/15"
-                  } ${loc.pathname === "/forum" ? "text-accent" : ""}`}
-                >
-                  <MessageSquareQuote className="w-4 h-4" />
-                  Foro
-                </Link>
-                <Link
-                  to="/trivia"
-                  onClick={() => setHamburgerOpen(false)}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm rounded-b-xl transition-colors ${
-                    isLight ? "hover:bg-accent/15" : "hover:bg-accent/15"
-                  } ${loc.pathname === "/trivia" ? "text-accent" : ""}`}
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Trivias
                 </Link>
               </div>
             )}

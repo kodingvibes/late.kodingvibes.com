@@ -6,7 +6,7 @@ import { RequireAuth } from "@/components/RequireAuth";
 export function Irc() {
   return (
     <RequireAuth mountSlot={<div id="micro-chat-root" />}>
-      <div id="micro-chat-root" />
+      <div id="micro-chat-root" className="w-full h-full" />
     </RequireAuth>
   );
 }

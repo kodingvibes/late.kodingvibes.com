@@ -1,11 +1,9 @@
-// Microfront slot. The shell renders this empty div on
-// /dashboard; the late-micro-dashboard bundle auto-mounts
-// its React tree into it. The auth gate is shared across
-// all gated routes via <RequireAuth> in App.tsx.
+import { RequireAuth } from "@/components/RequireAuth";
+
 export function Dashboard() {
   return (
-    <div className="min-h-screen">
-      <div id="micro-dashboard-root" />
-    </div>
+    <RequireAuth mountSlot={<div id="micro-dashboard-root" />}>
+      <div id="micro-dashboard-root" className="w-full h-full" />
+    </RequireAuth>
   );
 }
