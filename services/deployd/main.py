@@ -3,107 +3,36 @@
 late-deployd: GitHub webhook receiver that auto-deploys repos on push to main.
 
 Endpoints:
-  POST /deploy-webhook  -> receive GitHub push events (returns 202, deploys async)
-  GET  /health          -> health check
-  GET  /logs            -> list recent deploy logs
+  POST /deploy-webhook       -> receive GitHub push events (returns 202, deploys async)
+  GET  /health               -> health check
+  GET  /logs                 -> list recent deploy logs
+  GET  /api/deployd/events   -> recent deploy events (paginated, filterable)
+  WS   /api/deployd/events/ws -> live event stream
 
-Environment (from /root/.deployd.env):
-  GITHUB_WEBHOOK_SECRET  -> HMAC secret shared with GitHub webhooks
-  LOG_DIR                -> where deploy logs are written
+Config: /root/.deployd/config.yaml (YAML, hot-reload on file change)
+Events: /root/.deployd/events.db (SQLite, 30-day retention)
 """
 
-import hashlib
-import hmac
+from __future__ import annotations
+
+import asyncio
 import json
 import logging
 import os
-import subprocess
 import sys
-import threading
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 
-import dashboard_history  # noqa: F401  (sibling module)
+import dashboard_history  # noqa: F401
 import dashboard_state  # noqa: F401
-import dashboard_ws  # late-deployd dashboard WS + REST endpoints
-
-# ---------------------------------------------------------------------------
-# Config
-# ---------------------------------------------------------------------------
-REPOS = {
-    "late.kodingvibes.com": {
-        "path": "/root/late.kodingvibes.com",
-        "branch": "main",
-        "deploy": "shell_only",
-    },
-    "late-micro-radio": {
-        "path": "/root/late-micro-radio",
-        "branch": "main",
-        "deploy": "micro_radio",
-    },
-    "late-micro-chat": {
-        "path": "/root/late-micro-chat",
-        "branch": "main",
-        "deploy": "micro_chat",
-    },
-    "late-micro-dashboard": {
-        "path": "/root/late-micro-dashboard",
-        "branch": "main",
-        "deploy": "micro_dashboard",
-    },
-    "late-micro-profiles": {
-        "path": "/root/late-micro-profiles",
-        "branch": "main",
-        "deploy": "micro_profiles",
-        "url": "git@github.com:kodingvibes/late-micro-profiles.git",
-    },
-    "late-micro-freelance": {
-        "path": "/root/late-micro-freelance",
-        "branch": "main",
-        "deploy": "micro_freelance",
-        "url": "git@github.com:kodingvibes/late-micro-freelance.git",
-    },
-    "late-micro-games": {
-        "path": "/root/late-micro-games",
-        "branch": "main",
-        "deploy": "micro_games",
-        "url": "git@github.com:kodingvibes/late-micro-games.git",
-    },
-    "late-micro-forum": {
-        "path": "/root/late-micro-forum",
-        "branch": "main",
-        "deploy": "micro_forum",
-        "url": "git@github.com:kodingvibes/late-micro-forum.git",
-    },
-    "late-micro-trivia": {
-        "path": "/root/late-micro-trivia",
-        "branch": "main",
-        "deploy": "micro_trivia",
-        "url": "git@github.com:kodingvibes/late-micro-trivia.git",
-    },
-    "late-chat-service": {
-        "path": "/root/late-chat-service",
-        "branch": "main",
-        "deploy": "chat_service",
-    },
-    "late-auth-service": {
-        "path": "/root/late-auth-service",
-        "branch": "main",
-        "deploy": "auth_service",
-    },
-}
-
-SHELL_DIR = "/root/late.kodingvibes.com"
+import dashboard_ws  # noqa: F401
+from config import CONFIG_PATH, DeployConfig
+from events import EventBus
+from scheduler import Scheduler
 
 LOG_DIR = Path(os.environ.get("LOG_DIR", "/var/log/late-deployd"))
-SECRET = os.environ.get("GITHUB_WEBHOOK_SECRET", "").encode()
-
-APP = FastAPI(title="late-deployd")
-dashboard_ws.register(APP)
-
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(
@@ -113,382 +42,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger("deployd")
 
-# Lock per repo so concurrent pushes on the same repo queue instead of racing.
-LOCKS: dict[str, threading.Lock] = {name: threading.Lock() for name in REPOS}
-# Global lock around any write to /var/www/html/ (shell copy or micro symlink updates).
-WWW_LOCK = threading.Lock()
-
-
-def _env() -> dict:
-    """Environment with Node from nvm available to all subprocesses."""
-    return {"PATH": "/root/.nvm/versions/node/v24.18.0/bin:" + os.environ.get("PATH", "")}
-
-
 # ---------------------------------------------------------------------------
-# Helpers
+# Globals (initialized in startup)
 # ---------------------------------------------------------------------------
-def verify_signature(body: bytes, signature: Optional[str]) -> bool:
-    if not SECRET:
-        logger.error("GITHUB_WEBHOOK_SECRET not configured")
-        return False
-    if not signature:
-        return False
-    prefix = "sha256="
-    if not signature.startswith(prefix):
-        return False
-    expected = signature[len(prefix):].encode()
-    digest = hmac.new(SECRET, body, hashlib.sha256).hexdigest().encode()
-    return hmac.compare_digest(digest, expected)
+CONFIG = DeployConfig(CONFIG_PATH)
+EVENTS = EventBus()
+SCHEDULER = Scheduler(CONFIG, EVENTS, max_concurrent=2)
 
-
-def now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def write_deploy_log(repo_name: str, lines: list[str]) -> Path:
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    log_file = LOG_DIR / f"{repo_name}-{stamp}.log"
-    log_file.write_text("\n".join(lines), encoding="utf-8")
-    logger.info("deploy log written to %s", log_file)
-    return log_file
-
-
-def run(cmd: list[str], cwd: Optional[str] = None, extra_env: Optional[dict] = None) -> tuple[int, str, str]:
-    env = {**os.environ, **_env(), **(extra_env or {})}
-    proc = subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True)
-    return proc.returncode, proc.stdout, proc.stderr
-
-
-def git_pull(repo_path: str) -> tuple[int, list[str]]:
-    log: list[str] = [f"[{now_iso()}] git pull --ff-only in {repo_path}"]
-    rc, out, err = run(["git", "pull", "--ff-only"], cwd=repo_path)
-    log.append(out.rstrip())
-    if err:
-        log.append(f"stderr: {err.rstrip()}")
-    log.append(f"exit code: {rc}")
-    return rc, log
-
-
-def ensure_repo(path: str, url: str, branch: str, log: list[str]) -> tuple[int, list[str]]:
-    # ponytail: clone the repo on first deploy if /root/late-micro-X doesn't
-    # exist yet. Avoids the manual `git clone` step. Uses SSH because the
-    # deploy key already lives in /root/.ssh/ — see AGENTS.md.
-    head, _tail = log, []
-    if os.path.isdir(os.path.join(path, ".git")):
-        return 0, log
-    log.append(f"[{now_iso()}] cloning {url} -> {path} (branch {branch})")
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    rc, out, err = run(["git", "clone", "--branch", branch, url, path])
-    log.append(out.rstrip())
-    if err:
-        log.append(f"stderr: {err.rstrip()}")
-    log.append(f"clone exit code: {rc}")
-    return rc, log
-
-
-def paths_changed(repo_path: str, prefixes: list[str]) -> bool:
-    """Check whether the latest pull touched any of the given path prefixes."""
-    ranges = ["HEAD@{1}..HEAD", "HEAD~1..HEAD"]
-    prefix_filter = "|".join(f"^{p}" for p in prefixes)
-    for rng in ranges:
-        rc, out, err = run(
-            ["bash", "-c", f"git diff --name-only {rng} | grep -qE '{prefix_filter}'"],
-            cwd=repo_path,
-        )
-        if rc == 0:
-            return True
-        if "HEAD@{1}" in rng and "unknown revision" in (err or ""):
-            continue
-        break
-    return False
-
-
-def deployd_changed(repo_path: str) -> bool:
-    return paths_changed(repo_path, ["services/deployd/"])
-
-
-def extract_vendor(log: list[str]) -> int:
-    log.append(f"[{now_iso()}] extract vendor")
-    rc, out, err = run(["bash", f"{SHELL_DIR}/scripts/extract-vendor.sh"])
-    log.append(out.rstrip())
-    if err:
-        log.append(f"stderr: {err.rstrip()}")
-    if rc != 0:
-        log.append(f"vendor extract failed: {rc}")
-    return rc
-
-
-def build_shell(log: list[str]) -> int:
-    log.append(f"[{now_iso()}] build shell")
-    ui_dir = f"{SHELL_DIR}/late-web-ui"
-    rc, out, err = run(["bash", "-c", "npm run build"], cwd=ui_dir)
-    log.append(out.rstrip())
-    if err:
-        log.append(f"stderr: {err.rstrip()}")
-    if rc != 0:
-        log.append(f"shell build failed: {rc}")
-    return rc
-
-
-def copy_shell_to_www(log: list[str]) -> int:
-    log.append(f"[{now_iso()}] copy dist to /var/www/html")
-    ui_dir = f"{SHELL_DIR}/late-web-ui"
-    rc, out, err = run(
-        ["bash", "-c", "rm -rf /var/www/html/assets /var/www/html/index.html && cp -r dist/. /var/www/html/"],
-        cwd=ui_dir,
-    )
-    log.append(out.rstrip())
-    if err:
-        log.append(f"stderr: {err.rstrip()}")
-    if rc != 0:
-        log.append(f"copy failed: {rc}")
-    return rc
-
-
-def reload_nginx(log: list[str]) -> int:
-    log.append(f"[{now_iso()}] reload nginx")
-    rc, out, err = run(["nginx", "-s", "reload"])
-    log.append(out.rstrip())
-    if err:
-        log.append(f"stderr: {err.rstrip()}")
-    if rc != 0:
-        log.append(f"nginx reload failed: {rc}")
-    return rc
-
-
-CHAT_SERVICE_RESTART_SCRIPT = os.environ.get(
-    "CHAT_SERVICE_RESTART_SCRIPT",
-    "/root/late-chat-service/scripts/deploy.sh",
-)
-
-
-def deploy_chat_service(repo_path: str, log: list[str]) -> int:
-    log.append(f"[{now_iso()}] running late-chat-service deploy.sh")
-    rc, out, err = run(["bash", CHAT_SERVICE_RESTART_SCRIPT])
-    log.append(out.rstrip())
-    if err:
-        log.append(f"stderr: {err.rstrip()}")
-    if rc != 0:
-        log.append(f"late-chat-service deploy failed: {rc}")
-    return rc
-
-
-def deploy_auth_service(repo_path: str, log: list[str]) -> int:
-    # ponytail: late-auth-service is pure Python. The repo on
-    # disk is what the venv is bound to, so a git pull picks up
-    # the new code on the next uvicorn start. No build, no
-    # dependency install. Restart and probe /api/auth/healthz.
-    log.append(f"[{now_iso()}] restarting late-auth.service")
-    rc, out, err = run(["systemctl", "restart", "late-auth"])
-    log.append(out.rstrip())
-    if err:
-        log.append(f"stderr: {err.rstrip()}")
-    if rc != 0:
-        log.append(f"late-auth restart failed: {rc}")
-        return rc
-    log.append(f"[{now_iso()}] healthchecking late-auth /api/auth/healthz")
-    rc, out, err = run(
-        [
-            "bash",
-            "-c",
-            "for i in {1..30}; do "
-            "  curl -fsS http://127.0.0.1:9300/api/auth/healthz >/dev/null && exit 0; "
-            "  sleep 1; "
-            "done; exit 1",
-        ]
-    )
-    if rc != 0:
-        log.append(f"late-auth healthcheck failed: {err.rstrip()}")
-    else:
-        log.append("late-auth healthcheck passed")
-    return rc
-
-
-def healthcheck_chat_service(log: list[str]) -> int:
-    """Verify the late-chat-service /healthz endpoint is reachable."""
-    log.append(f"[{now_iso()}] healthchecking late-chat-service /healthz")
-    rc, out, err = run(
-        [
-            "bash",
-            "-c",
-            "for i in {1..30}; do "
-            "  curl -fsS http://127.0.0.1:9100/healthz >/dev/null && exit 0; "
-            "  sleep 1; "
-            "done; exit 1",
-        ]
-    )
-    if rc != 0:
-        log.append(f"late-chat-service healthcheck failed: {err.rstrip()}")
-    else:
-        log.append("late-chat-service healthcheck passed")
-    return rc
-
-
-def deploy_shell_only(repo_path: str, log: list[str]) -> int:
-    # ponytail: late-chat-service owns its own restart and
-    # healthcheck. The shell deploy only rebuilds + copies the
-    # React bundle and reloads nginx. Pushing chat code to the
-    # shell repo used to be a way to bounce the chat; the new
-    # shape is: chat lives at kodingvibes/late-chat-service
-    # with its own webhook.
-    if extract_vendor(log) != 0:
-        return 1
-    if build_shell(log) != 0:
-        return 1
-    if copy_shell_to_www(log) != 0:
-        return 1
-    if reload_nginx(log) != 0:
-        return 1
-
-    if deployd_changed(repo_path):
-        log.append(f"[{now_iso()}] deployd code changed; scheduling self-restart")
-        run(["systemctl", "restart", "late-deployd"])
-
-    return 0
-
-
-def deploy_micro(micro_name: str, repo_path: str, build_script: str, log: list[str]) -> int:
-    log.append(f"[{now_iso()}] build micro {micro_name}")
-    rc, out, err = run(["bash", build_script])
-    log.append(out.rstrip())
-    if err:
-        log.append(f"stderr: {err.rstrip()}")
-    if rc != 0:
-        log.append(f"micro {micro_name} build failed: {rc}")
-        return rc
-
-    # Micro is ready; rebuild shell so index.html gets new hashed assets.
-    # The shell's vite.config.ts points at /micro/{radio,chat}/latest, which is
-    # already updated by the build script above. Rebuilding the shell emits a
-    # fresh index.html with new asset hashes, busting browser caches.
-    log.append(f"[{now_iso()}] micro {micro_name} ready; rebuilding shell")
-    if extract_vendor(log) != 0:
-        return 1
-    if build_shell(log) != 0:
-        return 1
-    if copy_shell_to_www(log) != 0:
-        return 1
-    if reload_nginx(log) != 0:
-        return 1
-
-    return 0
-
-
-def deploy_micro_radio(repo_path: str, log: list[str]) -> int:
-    return deploy_micro(
-        "radio",
-        repo_path,
-        "/root/late.kodingvibes.com/scripts/build-micro-radio.sh",
-        log,
-    )
-
-
-def deploy_micro_chat(repo_path: str, log: list[str]) -> int:
-    return deploy_micro(
-        "chat",
-        repo_path,
-        "/root/late.kodingvibes.com/scripts/build-micro-chat.sh",
-        log,
-    )
-
-
-def deploy_micro_dashboard(repo_path: str, log: list[str]) -> int:
-    return deploy_micro(
-        "dashboard",
-        repo_path,
-        "/root/late.kodingvibes.com/scripts/build-micro-dashboard.sh",
-        log,
-    )
-
-
-def deploy_micro_profiles(repo_path: str, log: list[str]) -> int:
-    return deploy_micro(
-        "profiles",
-        repo_path,
-        "/root/late.kodingvibes.com/scripts/build-micro-profiles.sh",
-        log,
-    )
-
-
-def deploy_micro_freelance(repo_path: str, log: list[str]) -> int:
-    return deploy_micro(
-        "freelance",
-        repo_path,
-        "/root/late.kodingvibes.com/scripts/build-micro-freelance.sh",
-        log,
-    )
-
-
-def deploy_micro_games(repo_path: str, log: list[str]) -> int:
-    return deploy_micro(
-        "games",
-        repo_path,
-        "/root/late.kodingvibes.com/scripts/build-micro-games.sh",
-        log,
-    )
-
-
-def deploy_micro_forum(repo_path: str, log: list[str]) -> int:
-    return deploy_micro(
-        "forum",
-        repo_path,
-        "/root/late.kodingvibes.com/scripts/build-micro-forum.sh",
-        log,
-    )
-
-
-def deploy_micro_trivia(repo_path: str, log: list[str]) -> int:
-    return deploy_micro(
-        "trivia",
-        repo_path,
-        "/root/late.kodingvibes.com/scripts/build-micro-trivia.sh",
-        log,
-    )
-
-
-DEPLOYERS = {
-    "shell_only": deploy_shell_only,
-    "micro_radio": deploy_micro_radio,
-    "micro_chat": deploy_micro_chat,
-    "micro_dashboard": deploy_micro_dashboard,
-    "micro_profiles": deploy_micro_profiles,
-    "micro_freelance": deploy_micro_freelance,
-    "micro_games": deploy_micro_games,
-    "micro_forum": deploy_micro_forum,
-    "micro_trivia": deploy_micro_trivia,
-    "chat_service": deploy_chat_service,
-    "auth_service": deploy_auth_service,
-}
-
-
-def run_deploy(repo_name: str, config: dict, after: str, delivery: Optional[str]) -> None:
-    with LOCKS[repo_name]:
-        logger.info("[%s] start deploy for %s @ %s", delivery, repo_name, after)
-        log: list[str] = []
-        if config.get("url") and not os.path.isdir(os.path.join(config["path"], ".git")):
-            rc, log = ensure_repo(config["path"], config["url"], config.get("branch", "main"), log)
-            if rc != 0:
-                log.append(f"[{now_iso()}] clone failed, aborting")
-                write_deploy_log(repo_name, log)
-                logger.error("[%s] clone failed for %s", delivery, repo_name)
-                return
-        rc, log = git_pull(config["path"])
-        if rc != 0:
-            log.append(f"[{now_iso()}] git pull failed, aborting")
-            write_deploy_log(repo_name, log)
-            logger.error("[%s] git pull failed for %s", delivery, repo_name)
-            return
-
-        # Any operation that touches /var/www/html/ must hold the global lock.
-        with WWW_LOCK:
-            rc = DEPLOYERS[config["deploy"]](config["path"], log)
-
-        log.append(f"[{now_iso()}] deploy finished with code {rc}")
-        write_deploy_log(repo_name, log)
-        if rc == 0:
-            logger.info("[%s] deploy succeeded for %s", delivery, repo_name)
-        else:
-            logger.error("[%s] deploy failed for %s", delivery, repo_name)
+APP = FastAPI(title="late-deployd")
+dashboard_ws.register(APP)
 
 
 # ---------------------------------------------------------------------------
@@ -496,7 +58,11 @@ def run_deploy(repo_name: str, config: dict, after: str, delivery: Optional[str]
 # ---------------------------------------------------------------------------
 @APP.get("/health")
 async def health() -> dict:
-    return {"ok": True, "time": now_iso(), "repos": list(REPOS.keys())}
+    return {
+        "ok": True,
+        "time": __import__("deployers", fromlist=["now_iso"]).now_iso(),
+        "repos": CONFIG.repo_names,
+    }
 
 
 @APP.get("/logs")
@@ -505,11 +71,67 @@ async def logs(limit: int = 10) -> list:
     return [
         {
             "name": f.name,
-            "mtime": datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc).isoformat(),
+            "mtime": __import__("datetime").datetime.fromtimestamp(
+                f.stat().st_mtime, tz=__import__("datetime").timezone.utc
+            ).isoformat(),
             "size": f.stat().st_size,
         }
         for f in files
     ]
+
+
+@APP.get("/api/deployd/events")
+async def get_events(
+    limit: int = Query(50, ge=1, le=200),
+    repo: Optional[str] = Query(None),
+    type: Optional[str] = Query(None),
+) -> list:
+    return EVENTS.recent_events(limit=limit, repo=repo, type=type)
+
+
+@APP.websocket("/api/deployd/events/ws")
+async def events_ws(websocket: WebSocket, token: str = Query("")) -> None:
+    if not token or not dashboard_state.LATE_AUTH_SECRET:
+        await websocket.close(code=4401)
+        return
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            r = await client.get(
+                f"{dashboard_state.LATE_AUTH_URL}/api/auth/validate",
+                headers={
+                    "Authorization": f"Bearer {dashboard_state.LATE_AUTH_SECRET}",
+                    "X-Session-Id": token,
+                },
+            )
+    except Exception:
+        await websocket.close(code=4403)
+        return
+    if r.status_code != 200:
+        await websocket.close(code=4401)
+        return
+    body = r.json()
+    user = body.get("user", body) if isinstance(body, dict) else body
+    if user.get("global_role") != "super_admin":
+        await websocket.close(code=4403)
+        return
+
+    await websocket.accept()
+    q = await EVENTS.subscribe()
+    try:
+        while True:
+            try:
+                event = await asyncio.wait_for(q.get(), timeout=60)
+                await websocket.send_json(event)
+            except asyncio.TimeoutError:
+                try:
+                    await websocket.send_text("ping")
+                except Exception:
+                    break
+    except WebSocketDisconnect:
+        pass
+    finally:
+        EVENTS.unsubscribe(q)
 
 
 @APP.post("/deploy-webhook")
@@ -520,14 +142,18 @@ async def deploy_webhook(
     x_github_event: Optional[str] = Header(default=None),
     x_github_delivery: Optional[str] = Header(default=None),
 ) -> dict:
+    from deployers import verify_signature
+
     body = await request.body()
 
     if not verify_signature(body, x_hub_signature_256):
         logger.warning("invalid or missing signature; delivery=%s", x_github_delivery)
+        EVENTS.publish("webhook.invalid_signature", delivery=x_github_delivery or "")
         raise HTTPException(status_code=401, detail="invalid signature")
 
     if x_github_event != "push":
         logger.info("ignored event: %s", x_github_event)
+        EVENTS.publish("webhook.ignored", delivery=x_github_delivery or "", payload={"event": x_github_event})
         return {"ok": True, "ignored": True, "event": x_github_event}
 
     payload = json.loads(body.decode("utf-8"))
@@ -536,24 +162,22 @@ async def deploy_webhook(
     after = payload.get("after", "")[:12]
 
     repo_name = repo_full.split("/")[-1]
-    config = REPOS.get(repo_name)
+    config = CONFIG.get(repo_name)
     if not config:
         logger.info("repo not managed: %s", repo_full)
+        EVENTS.publish("webhook.ignored", delivery=x_github_delivery or "", payload={"repo": repo_full, "reason": "not managed"})
         return {"ok": True, "ignored": True, "repo": repo_full}
 
-    expected_ref = f"refs/heads/{config['branch']}"
+    expected_ref = f"refs/heads/{config.branch}"
     if ref != expected_ref:
         logger.info("ignored ref for %s: %s", repo_name, ref)
+        EVENTS.publish("webhook.ignored", repo=repo_name, delivery=x_github_delivery or "", payload={"ref": ref})
         return {"ok": True, "ignored": True, "ref": ref}
 
     logger.info("accepted deploy %s @ %s (%s)", repo_name, after, x_github_delivery)
+    EVENTS.publish("webhook.received", repo=repo_name, delivery=x_github_delivery or "", payload={"after": after, "ref": ref})
 
-    thread = threading.Thread(
-        target=run_deploy,
-        args=(repo_name, config, after, x_github_delivery),
-        daemon=True,
-    )
-    thread.start()
+    await SCHEDULER.enqueue(repo_name, after, x_github_delivery or "")
 
     return {
         "ok": True,
@@ -562,3 +186,19 @@ async def deploy_webhook(
         "ref": ref,
         "after": after,
     }
+
+
+# ---------------------------------------------------------------------------
+# Startup / shutdown
+# ---------------------------------------------------------------------------
+@APP.on_event("startup")
+async def _startup() -> None:
+    EVENTS.set_loop(asyncio.get_event_loop())
+    await SCHEDULER.start(n=2)
+    logger.info("scheduler started with 2 workers")
+
+
+@APP.on_event("shutdown")
+async def _shutdown() -> None:
+    await SCHEDULER.stop()
+    logger.info("scheduler stopped")
