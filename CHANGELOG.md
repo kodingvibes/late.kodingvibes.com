@@ -1,3 +1,10 @@
+# [1.31.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.30.5...v1.31.0) (2026-07-27)
+
+
+### Features
+
+* mount late-micro-mad8 microfrontend at /mad8 ([4c4a5e9](https://github.com/kodingvibes/late.kodingvibes.com/commit/4c4a5e90087453c4c73d226d2ff8fa9cad406866))
+
 ## [1.30.5](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.30.4...v1.30.5) (2026-07-27)
 
 
