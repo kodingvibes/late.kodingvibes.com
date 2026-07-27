@@ -94,8 +94,17 @@ export default function SiteHeader() {
         </Link>
 
         {/* Desktop nav links — hidden on mobile (the hamburger below
-         * exposes the same destinations in a drawer). */}
-        <div className="hidden sm:flex items-center gap-1 sm:gap-2">
+         * exposes the same destinations in a drawer).
+         *
+         * ponytail: `hidden sm:flex` is broken under this Tailwind v4 build
+         * because the `.hidden` utility lands after `.sm\:flex` in the
+         * `@layer utilities` cascade and wins on equal specificity, so
+         * the desktop nav stays hidden on >=640px viewports. Using
+         * `block sm:flex` alone still leaves the children visible in
+         * mobile (block lays them out in a column). Custom CSS in
+         * tokens.css forces the right display with media-query
+         * specificity so neither utility wins. */}
+        <div className="late-desktop-nav items-center gap-1 sm:gap-2">
           <Link
             to="/icecast"
             aria-label="Radio"

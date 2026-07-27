@@ -624,6 +624,21 @@ input[type="range"] {
   display: none !important;
 }
 
+/* ponytail: SiteHeader desktop nav. The `hidden sm:flex` Tailwind
+ * pattern collapses under Tailwind v4's @layer utilities cascade —
+ * .hidden lands after .sm\:flex and wins on equal specificity, so the
+ * desktop nav stays hidden on >=640px viewports. This rule carries
+ * the media query explicitly so it has the cascade priority we want
+ * regardless of where Tailwind places the utilities. */
+.late-desktop-nav {
+  display: none;
+}
+@media (min-width: 640px) {
+  .late-desktop-nav {
+    display: flex;
+  }
+}
+
 @media (max-width: 640px) {
   body {
     font-size: 15px;
