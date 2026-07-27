@@ -1,3 +1,10 @@
+## [1.28.2](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.28.1...v1.28.2) (2026-07-27)
+
+
+### Bug Fixes
+
+* **theme:** make doodles sharp and theme-flipped ([af96fd3](https://github.com/kodingvibes/late.kodingvibes.com/commit/af96fd3c3fb7e33ce8c383a092b6afbe471f8fd6)), closes [#f8fafc](https://github.com/kodingvibes/late.kodingvibes.com/issues/f8fafc) [#020617](https://github.com/kodingvibes/late.kodingvibes.com/issues/020617)
+
 ## [1.28.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.28.0...v1.28.1) (2026-07-27)
 
 
