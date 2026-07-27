@@ -1,3 +1,10 @@
+# [1.30.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.29.1...v1.30.0) (2026-07-27)
+
+
+### Features
+
+* **theme:** cards are now transparent with glass blur ([1847d8d](https://github.com/kodingvibes/late.kodingvibes.com/commit/1847d8d015e02d9e0f43eeda1e4aeaffee1e05d2))
+
 ## [1.29.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.29.0...v1.29.1) (2026-07-27)
 
 
