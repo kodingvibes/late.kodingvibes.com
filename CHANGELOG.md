@@ -1,3 +1,10 @@
+## [1.30.2](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.30.1...v1.30.2) (2026-07-27)
+
+
+### Bug Fixes
+
+* store event loop ref for thread-safe publish ([0e6b387](https://github.com/kodingvibes/late.kodingvibes.com/commit/0e6b387bf11e69de53bb8562cc1438f14c91af09))
+
 ## [1.30.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.30.0...v1.30.1) (2026-07-27)
 
 
