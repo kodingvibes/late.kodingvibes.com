@@ -191,8 +191,20 @@ Pushing to `main` on the managed repos triggers an automatic deploy on this host
 | `kodingvibes/late.kodingvibes.com` | `/root/late.kodingvibes.com` | `git pull` → `extract-vendor.sh` → build shell → copy to `/var/www/html/` → `nginx -s reload`. |
 | `kodingvibes/late-micro-radio` | `/root/late-micro-radio` | `git pull` → `scripts/build-micro-radio.sh` → `extract-vendor.sh` → **rebuild shell** → copy to `/var/www/html/` → `nginx -s reload`. |
 | `kodingvibes/late-micro-chat` | `/root/late-micro-chat` | `git pull` → `scripts/build-micro-chat.sh` → `extract-vendor.sh` → **rebuild shell** → copy to `/var/www/html/` → `nginx -s reload`. |
+| `kodingvibes/late-micro-games` | `/root/late-micro-games` | `git pull` → `scripts/build-micro-games.sh` → **rebuild shell** → nginx reload. |
+| `kodingvibes/late-micro-profiles` | `/root/late-micro-profiles` | `git pull` → `scripts/build-micro-profiles.sh` → **rebuild shell** → nginx reload. |
+| `kodingvibes/late-micro-freelance` | `/root/late-micro-freelance` | `git pull` → `scripts/build-micro-freelance.sh` → **rebuild shell** → nginx reload. |
+| `kodingvibes/late-micro-forum` | `/root/late-micro-forum` | `git pull` → `scripts/build-micro-forum.sh` → **rebuild shell** → nginx reload. |
+| `kodingvibes/late-micro-trivia` | `/root/late-micro-trivia` | `git pull` → `scripts/build-micro-trivia.sh` → **rebuild shell** → nginx reload. |
+| `kodingvibes/late-micro-dashboard` | `/root/late-micro-dashboard` | `git pull` → `scripts/build-micro-dashboard.sh` → **rebuild shell** → nginx reload. |
 | `kodingvibes/late-auth-service` | `/root/late-auth-service` | `git pull` → `systemctl restart late-auth` (no build, pure Python). |
 | `kodingvibes/late-chat-service` | `/root/late-chat-service` | `git pull` → `scripts/deploy.sh` (Docker build + container replace + `/healthz` probe). |
+
+All 11 repos carry a GitHub webhook pointing at
+`https://late.kodingvibes.com/deploy-webhook` with the secret
+in `/root/.deployd.env`. If a new managed repo is added, run
+the same `gh api POST .../hooks` call as the bootstrap script
+to wire up auto-deploy.
 
 Webhook endpoint: `https://late.kodingvibes.com/deploy-webhook`  
 Health/logs: `https://late.kodingvibes.com/deploy-health`, `https://late.kodingvibes.com/deploy-logs`  
