@@ -1,3 +1,10 @@
+## [1.30.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.30.0...v1.30.1) (2026-07-27)
+
+
+### Bug Fixes
+
+* **shell:** drop chat online-count badge from the header ([8c811c0](https://github.com/kodingvibes/late.kodingvibes.com/commit/8c811c0972cd341c15550522c85a3e86a1827a46))
+
 # [1.30.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.29.1...v1.30.0) (2026-07-27)
 
 
