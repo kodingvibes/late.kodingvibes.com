@@ -20,6 +20,14 @@ late.kodingvibes.com/                (this repo, the shell)
 ├── scripts/                        Build scripts (radio/chat/vendor + soma relays)
 ├── infra/icecast/                  Icecast config
 └── services/deployd/               late-deployd (FastAPI webhook receiver, port 9200)
+    ├── main.py                     FastAPI app + HTTP/WS handlers
+    ├── config.py                   YAML config loader (hot-reload)
+    ├── scheduler.py                Async queue + 2-worker pool + per-repo locks
+    ├── deployers.py                Sync deploy logic (git pull, build, copy, nginx)
+    ├── events.py                   EventBus (SQLite + pub/sub)
+    ├── dashboard_state.py          System metrics gatherers
+    ├── dashboard_history.py         Time-series JSONL history
+    └── dashboard_ws.py             Dashboard WS + REST endpoints
 
 /root/late-auth-service/             Repo independiente (auth: SSO, sessions, users)
    FastAPI on :9300. Validate Bearer tokens. Source of truth for users + sessions.
@@ -184,7 +192,26 @@ late.kodingvibes.com/                (this repo, the shell)
 
 ## Auto-deploy (late-deployd)
 
-Pushing to `main` on the managed repos triggers an automatic deploy on this host:
+Pushing to `main` on the managed repos triggers an automatic deploy on this host.
+The daemon is now **config-driven** (no hardcoded repos in Python) and uses an
+**async scheduler** with a 2-worker pool, per-repo locks, and a global lock on
+`/var/www/html/`. Every deploy lifecycle event is published to an **EventBus**
+(SQLite + in-memory pub/sub) and available via REST and WebSocket.
+
+### Config
+- **File:** `/root/.deployd/config.yaml` — YAML with all 11 repos, their type
+  (`shell_only`, `micro`, `service`), build scripts, and healthcheck commands.
+- **Hot-reload:** the daemon re-reads the file on every webhook; no restart needed
+  to add a new repo.
+
+### Events API
+- `GET  /api/deployd/events` — recent events, filterable by `?repo=` and `?type=`
+- `WS   /api/deployd/events/ws?token=<session_id>` — live event stream (auth: super_admin)
+- Event types: `webhook.received`, `webhook.ignored`, `webhook.invalid_signature`,
+  `deploy.queued`, `deploy.started`, `deploy.step`, `deploy.success`, `deploy.failure`
+- Events persist in `/root/.deployd/events.db` (SQLite, 30-day retention)
+
+### Repos
 
 | Repo | Local path | Deploy action |
 |------|------------|---------------|
@@ -202,15 +229,19 @@ Pushing to `main` on the managed repos triggers an automatic deploy on this host
 
 All 11 repos carry a GitHub webhook pointing at
 `https://late.kodingvibes.com/deploy-webhook` with the secret
-in `/root/.deployd.env`. If a new managed repo is added, run
-the same `gh api POST .../hooks` call as the bootstrap script
-to wire up auto-deploy.
+in `/root/.deployd.env`. If a new managed repo is added, add it to
+`/root/.deployd/config.yaml` and run the same `gh api POST .../hooks` call
+as the bootstrap script to wire up auto-deploy. No Python code changes needed.
 
 Webhook endpoint: `https://late.kodingvibes.com/deploy-webhook`  
 Health/logs: `https://late.kodingvibes.com/deploy-health`, `https://late.kodingvibes.com/deploy-logs`  
+Events REST: `https://late.kodingvibes.com/api/deployd/events`  
+Events WS: `wss://late.kodingvibes.com/api/deployd/events/ws`  
 Service: `late-deployd.service` (systemd) running `services/deployd/main.py` on `127.0.0.1:9200`.  
 Secret: `/root/.deployd.env` (`GITHUB_WEBHOOK_SECRET`).  
-Logs: `/var/log/late-deployd/`.
+Logs: `/var/log/late-deployd/`.  
+Events DB: `/root/.deployd/events.db` (SQLite, 30-day retention).  
+Config: `/root/.deployd/config.yaml` (YAML, hot-reload).
 
 Deploys are asynchronous (returns HTTP 202) so GitHub does not retry while a build runs. A per-repo lock prevents concurrent deploys of the same repo; a global lock prevents concurrent writes to `/var/www/html/`.
 
