@@ -1,3 +1,10 @@
+## [1.28.3](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.28.2...v1.28.3) (2026-07-27)
+
+
+### Bug Fixes
+
+* **shell:** single UserMenu mount + REST-backed online count ([88cd805](https://github.com/kodingvibes/late.kodingvibes.com/commit/88cd8056ef44bddd832931f11372e93dfa806b4e))
+
 ## [1.28.2](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.28.1...v1.28.2) (2026-07-27)
 
 
