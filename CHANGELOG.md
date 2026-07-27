@@ -1,3 +1,10 @@
+## [1.26.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.26.0...v1.26.1) (2026-07-27)
+
+
+### Bug Fixes
+
+* **shell:** strip orphan border-t/b/l/r/x/y that crept in after the accent pass ([062091c](https://github.com/kodingvibes/late.kodingvibes.com/commit/062091cd3a2c70d89488d1fbb3d6139e47cc8ceb))
+
 # [1.26.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.25.0...v1.26.0) (2026-07-26)
 
 
