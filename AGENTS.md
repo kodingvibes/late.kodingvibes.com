@@ -18,16 +18,15 @@
 late.kodingvibes.com/                (this repo, the shell)
 ├── late-web-ui/                    React shell (header, nav, MiniPlayer, Home)
 ├── scripts/                        Build scripts (radio/chat/vendor + soma relays)
-├── infra/icecast/                  Icecast config
-└── services/deployd/               late-deployd (FastAPI webhook receiver, port 9200)
-    ├── main.py                     FastAPI app + HTTP/WS handlers
-    ├── config.py                   YAML config loader (hot-reload)
-    ├── scheduler.py                Async queue + 2-worker pool + per-repo locks
-    ├── deployers.py                Sync deploy logic (git pull, build, copy, nginx)
-    ├── events.py                   EventBus (SQLite + pub/sub)
-    ├── dashboard_state.py          System metrics gatherers
-    ├── dashboard_history.py         Time-series JSONL history
-    └── dashboard_ws.py             Dashboard WS + REST endpoints
+└── infra/icecast/                  Icecast config
+
+/root/late-deployd/                   Repo independiente (auto-deploy daemon)
+   kodingvibes/late-deployd. FastAPI on :9200. GitHub webhook receiver
+   for the 12 managed repos. Webhook self-updates from main on push.
+   Systemd unit: /etc/systemd/system/late-deployd.service
+   WorkingDirectory: /root/late-deployd
+
+```
 
 /root/late-auth-service/             Repo independiente (auth: SSO, sessions, users)
    FastAPI on :9300. Validate Bearer tokens. Source of truth for users + sessions.
@@ -237,7 +236,7 @@ Webhook endpoint: `https://late.kodingvibes.com/deploy-webhook`
 Health/logs: `https://late.kodingvibes.com/deploy-health`, `https://late.kodingvibes.com/deploy-logs`  
 Events REST: `https://late.kodingvibes.com/api/deployd/events`  
 Events WS: `wss://late.kodingvibes.com/api/deployd/events/ws`  
-Service: `late-deployd.service` (systemd) running `services/deployd/main.py` on `127.0.0.1:9200`.  
+Service: `late-deployd.service` (systemd) running `main.py` from `/root/late-deployd/` on `127.0.0.1:9200`.  
 Secret: `/root/.deployd.env` (`GITHUB_WEBHOOK_SECRET`).  
 Logs: `/var/log/late-deployd/`.  
 Events DB: `/root/.deployd/events.db` (SQLite, 30-day retention).  
