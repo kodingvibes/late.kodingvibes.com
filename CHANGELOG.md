@@ -1,3 +1,10 @@
+## [1.30.5](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.30.4...v1.30.5) (2026-07-27)
+
+
+### Bug Fixes
+
+* **shell:** SiteHeader desktop nav was hidden on every viewport ([23d4ec1](https://github.com/kodingvibes/late.kodingvibes.com/commit/23d4ec1044103ce5468cb5e67867c1e48b9bee5e))
+
 ## [1.30.4](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.30.3...v1.30.4) (2026-07-27)
 
 
