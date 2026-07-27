@@ -363,15 +363,17 @@ input[type="range"] {
     0 12px 32px -8px rgba(15, 23, 42, 0.08);
 }
 
-/* ponytail: doodle-wallpaper base. Each micro paints its own
- * .bg-{theme}-doodles that supplies six SVG tiles at 40x40 each,
- * laid out in a 3x2 grid that repeats every 120x80px. This base
- * only owns positioning (absolute, inset-0, under content),
- * currentColor wiring, and repeat. --doodle-color flips between
+/* ponytail: doodle-wallpaper base. position:fixed + inset:0 pins
+ * the layer to the viewport, so the motifs stay still when the
+ * page scrolls and any micro's content scrolls over them. Each
+ * micro pairs this base with its own motif set (radio's
+ * .bg-musical-doodles, chat's .bg-chat-doodles, etc.). The layer
+ * is pointer-events:none and z-index:0 so it never intercepts
+ * clicks or covers the foreground. --doodle-color flips between
  * slate-50 (light motifs on dark canvas) and slate-950 (dark
  * motifs on light canvas) with the theme. */
 .bg-doodles {
-  position: absolute;
+  position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
