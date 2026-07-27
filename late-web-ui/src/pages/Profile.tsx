@@ -7,6 +7,7 @@ import {
 } from "@/lib/chat-session";
 import { useTheme } from "@/providers/theme-provider";
 import { UserAvatar } from "@/components/UserAvatar";
+import { downscaleAvatar } from "@/lib/avatar-utils";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { NickPromptModal } from "@/components/NickPromptModal";
 import { NotificationSettingsModal } from "@/components/NotificationSettingsModal";
@@ -98,7 +99,7 @@ export function Profile() {
     setUploading(true);
     try {
       const form = new FormData();
-      form.append("file", file);
+      form.append("file", await downscaleAvatar(file), "avatar.webp");
       const res = await fetch("/api/auth/me/avatar", {
         method: "POST",
         headers: authHeaders(),
