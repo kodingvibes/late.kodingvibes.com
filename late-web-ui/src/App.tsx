@@ -16,7 +16,6 @@ const Icecast   = lazy(() => import("@/pages/Icecast").then((m) => ({ default: m
 const Irc       = lazy(() => import("@/pages/Irc").then((m) => ({ default: m.Irc })));
 const Games     = lazy(() => import("@/pages/Games").then((m) => ({ default: m.Games })));
 const Dashboard = lazy(() => import("@/pages/Dashboard").then((m) => ({ default: m.Dashboard })));
-const Mad8      = lazy(() => import("@/pages/Mad8").then((m) => ({ default: m.Mad8 })));
 
 // ponytail: a micro might still be downloading on first navigation. The
 // shell has no signal that the micro is "ready" beyond "did the React
@@ -54,7 +53,6 @@ function microReady(pathname: string): boolean {
     );
   if (pathname === "/games") return Boolean(window.GamesEngine);
   if (pathname === "/dashboard") return Boolean(window.DashboardEngine);
-  if (pathname === "/mad8") return Boolean((window as unknown as { Mad8Engine?: unknown }).Mad8Engine);
   return true;
 }
 
@@ -85,7 +83,6 @@ export function App() {
                 <Route path="/icecast" element={<><Icecast /><MicroLoader /></>} />
                 <Route path="/irc" element={<><Irc /><MicroLoader /></>} />
                 <Route path="/games" element={<Games />} />
-                <Route path="/mad8" element={<><Mad8 /><MicroLoader /></>} />
                 <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
                 <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
               </Routes>

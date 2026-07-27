@@ -9,7 +9,7 @@ interface LatestJson {
   name?: string;
 }
 
-function readLatestVersion(name: "radio" | "chat" | "dashboard" | "games" | "mad8"): string {
+function readLatestVersion(name: "radio" | "chat" | "dashboard" | "games"): string {
   try {
     const raw = fs.readFileSync(`/var/www/html/micro/${name}/latest.json`, "utf8");
     const parsed = JSON.parse(raw) as LatestJson;
@@ -35,28 +35,23 @@ const microfrontsPlugin: Plugin = {
       const chatV  = readLatestVersion("chat");
       const dashV  = readLatestVersion("dashboard");
       const gamesV = readLatestVersion("games");
-      const madV   = readLatestVersion("mad8");
       const radioBase = "/micro/radio/latest";
       const chatBase  = "/micro/chat/latest";
       const dashBase  = "/micro/dashboard/latest";
       const gamesBase = "/micro/games/latest";
-      const madBase   = "/micro/mad8/latest";
       const radioQ = radioV ? `?v=${encodeURIComponent(radioV)}` : "";
       const chatQ  = chatV  ? `?v=${encodeURIComponent(chatV)}`  : "";
       const dashQ  = dashV  ? `?v=${encodeURIComponent(dashV)}`  : "";
       const gamesQ = gamesV ? `?v=${encodeURIComponent(gamesV)}` : "";
-      const madQ   = madV   ? `?v=${encodeURIComponent(madV)}`   : "";
       const tags = [
         `<link rel="stylesheet" href="${radioBase}/style.css${radioQ}">`,
         `<link rel="stylesheet" href="${chatBase}/style.css${chatQ}">`,
         `<link rel="stylesheet" href="${dashBase}/style.css${dashQ}">`,
         `<link rel="stylesheet" href="${gamesBase}/style.css${gamesQ}">`,
-        `<link rel="stylesheet" href="${madBase}/style.css${madQ}">`,
         `<script type="module" src="${radioBase}/entry.js${radioQ}"></script>`,
         `<script type="module" src="${chatBase}/entry.js${chatQ}"></script>`,
         `<script type="module" src="${dashBase}/entry.js${dashQ}"></script>`,
         `<script type="module" src="${gamesBase}/entry.js${gamesQ}"></script>`,
-        `<script type="module" src="${madBase}/entry.js${madQ}"></script>`,
       ].join("\n    ");
       return html.replace("</body>", `    ${tags}\n  </body>`);
     },
