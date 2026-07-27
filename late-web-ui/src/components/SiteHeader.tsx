@@ -1,9 +1,54 @@
 import { Link, useLocation } from "react-router-dom";
-import { Radio, MessageCircle, Briefcase, Gamepad2, MessageSquareQuote, Sparkles, UserCircle, Menu, X } from "lucide-react";
-import { useEffect, useState, useRef } from "react";
+import { Radio, MessageCircle, Briefcase, Gamepad2, MessageSquareQuote, Sparkles, Menu, X } from "lucide-react";
+import { useEffect, useState, useRef, type ReactNode } from "react";
 import { CoffeeIcon } from "./AppLoader";
 import { UserMenu } from "./UserMenu";
 import { useTheme } from "@/providers/theme-provider";
+
+interface ChatNavLinkProps {
+  onlineCount: number | null;
+  isActive: boolean;
+  isLight: boolean;
+  baseClass: string;
+  activeClass: string;
+  onClick?: () => void;
+  children?: ReactNode;
+}
+
+function ChatNavLink({ onlineCount, isActive, isLight, baseClass, activeClass, onClick, children }: ChatNavLinkProps) {
+  return (
+    <Link
+      to="/irc"
+      aria-label="Chat"
+      title="Chat"
+      onClick={onClick}
+      className={`relative flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-sm transition-colors ${
+        isActive ? activeClass : baseClass
+      } ${children ? "justify-between" : ""}`}
+    >
+      {children ?? (
+        <>
+          <span className="flex items-center gap-1.5">
+            <MessageCircle className="w-4 h-4" />
+            <span>Chat</span>
+          </span>
+          <span
+            className={`text-[10px] tabular-nums font-semibold px-1.5 py-0.5 rounded-full ${
+              isActive
+                ? "bg-accent/30 text-accent"
+                : isLight
+                ? "bg-surface-tint-60 text-slate-700"
+                : "bg-slate-800 text-slate-200"
+            } ${onlineCount === null ? "opacity-50" : ""}`}
+            title={onlineCount === null ? "sin conexión" : `${onlineCount} en línea`}
+          >
+            {onlineCount ?? "—"}
+          </span>
+        </>
+      )}
+    </Link>
+  );
+}
 
 export default function SiteHeader() {
   const loc = useLocation();
@@ -97,29 +142,13 @@ export default function SiteHeader() {
             <span>Radio</span>
           </Link>
 
-          <Link
-            to="/irc"
-            aria-label="Chat"
-            title="Chat"
-            className={`relative flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-sm transition-colors ${
-              isChat ? activeLink : baseLink
-            }`}
-          >
-            <MessageCircle className="w-4 h-4" />
-            <span>Chat</span>
-            <span
-              className={`ml-1 text-[10px] tabular-nums font-semibold px-1.5 py-0.5 rounded-full ${
-                isChat
-                  ? "bg-accent/30 text-accent"
-                  : isLight
-                  ? "bg-surface-tint-60 text-slate-700"
-                  : "bg-slate-800 text-slate-200"
-              } ${onlineCount === null ? "opacity-50" : ""}`}
-              title={onlineCount === null ? "sin conexión" : `${onlineCount} en línea`}
-            >
-              {onlineCount ?? "—"}
-            </span>
-          </Link>
+          <ChatNavLink
+            onlineCount={onlineCount}
+            isActive={isChat}
+            isLight={isLight}
+            baseClass={baseLink}
+            activeClass={activeLink}
+          />
 
           <Link
             to="/games"
@@ -136,7 +165,7 @@ export default function SiteHeader() {
           <UserMenu />
         </div>
 
-        {/* Mobile: hamburger + UserMenu */}
+        {/* Mobile: UserMenu + hamburger nav */}
         <div className="flex sm:hidden items-center gap-1">
           <UserMenu />
           <div ref={hamburgerRef} className="relative">
@@ -167,23 +196,32 @@ export default function SiteHeader() {
                   <Radio className="w-4 h-4" />
                   Radio
                 </Link>
-                <Link
-                  to="/irc"
-                  onClick={() => setHamburgerOpen(false)}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
+                <ChatNavLink
+                  onlineCount={onlineCount}
+                  isActive={isChat}
+                  isLight={isLight}
+                  baseClass={`flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
                     isLight ? "hover:bg-accent/15" : "hover:bg-accent/15"
-                  } ${isChat ? "text-accent" : ""}`}
+                  }`}
+                  activeClass={`flex items-center gap-2 px-3 py-2 text-sm transition-colors text-accent ${
+                    isLight ? "hover:bg-accent/15" : "hover:bg-accent/15"
+                  }`}
+                  onClick={() => setHamburgerOpen(false)}
                 >
                   <MessageCircle className="w-4 h-4" />
                   Chat
                   <span
                     className={`ml-auto text-[10px] tabular-nums font-semibold px-1.5 py-0.5 rounded-full ${
-                      isLight ? "bg-surface-tint-60 text-slate-700" : "bg-slate-800 text-slate-200"
+                      isChat
+                        ? "bg-accent/30 text-accent"
+                        : isLight
+                        ? "bg-surface-tint-60 text-slate-700"
+                        : "bg-slate-800 text-slate-200"
                     } ${onlineCount === null ? "opacity-50" : ""}`}
                   >
                     {onlineCount ?? "—"}
                   </span>
-                </Link>
+                </ChatNavLink>
                 <Link
                   to="/games"
                   onClick={() => setHamburgerOpen(false)}
@@ -193,17 +231,6 @@ export default function SiteHeader() {
                 >
                   <Gamepad2 className="w-4 h-4" />
                   Juegos
-                </Link>
-                <div className={` ${isLight ? "" : ""}`} />
-                <Link
-                  to="/profiles"
-                  onClick={() => setHamburgerOpen(false)}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
-                    isLight ? "hover:bg-accent/15" : "hover:bg-accent/15"
-                  } ${loc.pathname === "/profiles" ? "text-accent" : ""}`}
-                >
-                  <UserCircle className="w-4 h-4" />
-                  Perfiles
                 </Link>
                 <Link
                   to="/freelance"
