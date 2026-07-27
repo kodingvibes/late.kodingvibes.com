@@ -6,16 +6,14 @@ import { UserMenu } from "./UserMenu";
 import { useTheme } from "@/providers/theme-provider";
 
 interface ChatNavLinkProps {
-  onlineCount: number | null;
   isActive: boolean;
-  isLight: boolean;
   baseClass: string;
   activeClass: string;
   onClick?: () => void;
   children?: ReactNode;
 }
 
-function ChatNavLink({ onlineCount, isActive, isLight, baseClass, activeClass, onClick, children }: ChatNavLinkProps) {
+function ChatNavLink({ isActive, baseClass, activeClass, onClick, children }: ChatNavLinkProps) {
   return (
     <Link
       to="/irc"
@@ -28,22 +26,8 @@ function ChatNavLink({ onlineCount, isActive, isLight, baseClass, activeClass, o
     >
       {children ?? (
         <>
-          <span className="flex items-center gap-1.5">
-            <MessageCircle className="w-4 h-4" />
-            <span>Chat</span>
-          </span>
-          <span
-            className={`text-[10px] tabular-nums font-semibold px-1.5 py-0.5 rounded-full ${
-              isActive
-                ? "bg-accent/30 text-accent"
-                : isLight
-                ? "bg-surface-tint-60 text-slate-700"
-                : "bg-slate-800 text-slate-200"
-            } ${onlineCount === null ? "opacity-50" : ""}`}
-            title={onlineCount === null ? "sin conexión" : `${onlineCount} en línea`}
-          >
-            {onlineCount ?? "—"}
-          </span>
+          <MessageCircle className="w-4 h-4" />
+          <span>Chat</span>
         </>
       )}
     </Link>
@@ -54,49 +38,8 @@ export default function SiteHeader() {
   const loc = useLocation();
   const { mode } = useTheme();
   const isLight = mode === "light";
-  const [onlineCount, setOnlineCount] = useState<number | null>(null);
   const [hamburgerOpen, setHamburgerOpen] = useState(false);
   const hamburgerRef = useRef<HTMLDivElement>(null);
-
-  // ponytail: the chat micro publishes window.ChatEngine.onlineCount
-  // while it's mounted (i.e. while the user is on /irc). The shell
-  // also polls /api/chat/online-count so the badge is populated on
-  // every page from initial load, not only after entering the chat.
-  // We merge both sources: the WS-driven value wins when present,
-  // the REST endpoint fills the gap on every other route.
-  useEffect(() => {
-    let cancelled = false;
-    const read = () => {
-      const c = window.ChatEngine?.onlineCount;
-      if (typeof c === "number") setOnlineCount(c);
-    };
-    read();
-    const wsId = window.setInterval(read, 4000);
-
-    const fetchRest = async () => {
-      try {
-        const r = await fetch("/api/chat/online-count", { credentials: "omit" });
-        if (!r.ok) return;
-        const j = (await r.json()) as { count?: number };
-        if (cancelled) return;
-        if (typeof j.count === "number") {
-          // only fill in if the WS source hasn't published a live
-          // number yet — once it has, the WS value is authoritative.
-          setOnlineCount((prev) => (prev === null ? j.count! : prev));
-        }
-      } catch {
-        /* endpoint may be down; badge stays "—" */
-      }
-    };
-    fetchRest();
-    const restId = window.setInterval(fetchRest, 15000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(wsId);
-      window.clearInterval(restId);
-    };
-  }, []);
 
   const isChat = loc.pathname.startsWith("/irc");
   const isRadio = loc.pathname.startsWith("/icecast");
@@ -169,9 +112,7 @@ export default function SiteHeader() {
           </Link>
 
           <ChatNavLink
-            onlineCount={onlineCount}
             isActive={isChat}
-            isLight={isLight}
             baseClass={baseLink}
             activeClass={activeLink}
           />
@@ -225,9 +166,7 @@ export default function SiteHeader() {
                   Radio
                 </Link>
                 <ChatNavLink
-                  onlineCount={onlineCount}
                   isActive={isChat}
-                  isLight={isLight}
                   baseClass={`flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
                     isLight ? "hover:bg-accent/15" : "hover:bg-accent/15"
                   }`}
@@ -238,17 +177,6 @@ export default function SiteHeader() {
                 >
                   <MessageCircle className="w-4 h-4" />
                   Chat
-                  <span
-                    className={`ml-auto text-[10px] tabular-nums font-semibold px-1.5 py-0.5 rounded-full ${
-                      isChat
-                        ? "bg-accent/30 text-accent"
-                        : isLight
-                        ? "bg-surface-tint-60 text-slate-700"
-                        : "bg-slate-800 text-slate-200"
-                    } ${onlineCount === null ? "opacity-50" : ""}`}
-                  >
-                    {onlineCount ?? "—"}
-                  </span>
                 </ChatNavLink>
                 <Link
                   to="/games"
