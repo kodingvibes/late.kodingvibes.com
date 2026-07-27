@@ -212,7 +212,6 @@ input[type="range"] {
 
 :root.theme-light .shadow-floating { box-shadow: 0 12px 36px -8px rgba(15, 23, 42, 0.18), 0 4px 12px -2px rgba(15, 23, 42, 0.1); }
 :root.theme-light .shadow-soft { box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.1), 0 2px 4px -2px rgba(15, 23, 42, 0.1); }
-:root.theme-light .shadow-card { box-shadow: 0 10px 40px -10px rgba(15, 23, 42, 0.12); }
 
 :root.theme-light .bg-accent\/15 { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 15%, transparent); }
 
@@ -331,9 +330,38 @@ input[type="range"] {
  * document background; each micro wraps its UI in this so the
  * page reads as one canvas while the micro keeps its accent
  * tint. New micros should reach for .bg-mf-surface instead of
- * .bg-slate-950 / .bg-black. */
-.bg-mf-surface { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 8%, var(--surface-base, #020617)); }
-:root.theme-light .bg-mf-surface { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 8%, var(--surface-base, #f8fafc)); }
+ * .bg-slate-950 / .bg-black. Uses a soft diagonal accent
+ * gradient so the page reads as a wash, not a flat slab. */
+.bg-mf-surface {
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent-primary, #6366f1) 4%, var(--surface-base, #020617)) 0%,
+    color-mix(in srgb, var(--accent-primary, #6366f1) 14%, var(--surface-base, #020617)) 100%
+  );
+}
+:root.theme-light .bg-mf-surface {
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent-primary, #6366f1) 4%, var(--surface-base, #f8fafc)) 0%,
+    color-mix(in srgb, var(--accent-primary, #6366f1) 12%, var(--surface-base, #f8fafc)) 100%
+  );
+}
+
+/* ponytail: universal card shadow so anything labelled "card"
+ * lifts off the gradient background. The shell also re-exports
+ * it under .shadow-card so older class names still get it. */
+.shadow-card {
+  box-shadow:
+    0 1px 0 0 color-mix(in srgb, var(--accent-primary, #6366f1) 12%, transparent),
+    0 4px 12px -2px rgba(0, 0, 0, 0.35),
+    0 12px 32px -8px rgba(0, 0, 0, 0.25);
+}
+:root.theme-light .shadow-card {
+  box-shadow:
+    0 1px 0 0 color-mix(in srgb, var(--accent-primary, #6366f1) 18%, transparent),
+    0 4px 12px -2px rgba(15, 23, 42, 0.10),
+    0 12px 32px -8px rgba(15, 23, 42, 0.08);
+}
 
 /* ponytail: doodle-wallpaper base. Each micro paints its own
  * .bg-{theme}-doodles that supplies six SVG tiles at 40x40 each,
@@ -406,9 +434,6 @@ input[type="range"] {
 /* Shadows. */
 .shadow-soft {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
-}
-.shadow-card {
-  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.4);
 }
 .shadow-bubble {
   box-shadow:
