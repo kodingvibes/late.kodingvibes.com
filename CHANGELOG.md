@@ -1,3 +1,10 @@
+# [1.29.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.28.3...v1.29.0) (2026-07-27)
+
+
+### Features
+
+* **theme:** card shadow + mf-surface diagonal gradient ([ec3a011](https://github.com/kodingvibes/late.kodingvibes.com/commit/ec3a01157f98029548786d7de0ddea22807272c5))
+
 ## [1.28.3](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.28.2...v1.28.3) (2026-07-27)
 
 
