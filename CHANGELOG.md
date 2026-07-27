@@ -1,3 +1,10 @@
+## [1.29.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.29.0...v1.29.1) (2026-07-27)
+
+
+### Bug Fixes
+
+* **theme:** pin doodle wallpaper to the viewport ([2777616](https://github.com/kodingvibes/late.kodingvibes.com/commit/2777616ccb91394f5f2a7ea3d3588fc3ff5761d2))
+
 # [1.29.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.28.3...v1.29.0) (2026-07-27)
 
 

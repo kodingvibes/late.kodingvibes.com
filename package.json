@@ -1,7 +1,7 @@
 {
   "name": "late.kodingvibes.com",
   "private": true,
-  "version": "1.29.0",
+  "version": "1.29.1",
   "description": "React shell + Icecast streaming infra for late.kodingvibes.com",
   "scripts": {
     "release": "semantic-release",
