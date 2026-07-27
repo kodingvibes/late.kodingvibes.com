@@ -1,3 +1,10 @@
+## [1.28.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.28.0...v1.28.1) (2026-07-27)
+
+
+### Bug Fixes
+
+* **shell:** chat always shows online count, remove duplicated profile link ([e5a2dd9](https://github.com/kodingvibes/late.kodingvibes.com/commit/e5a2dd992db65061b2a12f205c1fd1fe2e4e771d))
+
 # [1.28.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.27.0...v1.28.0) (2026-07-27)
 
 
