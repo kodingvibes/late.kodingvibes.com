@@ -1,3 +1,10 @@
+# [1.28.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.27.0...v1.28.0) (2026-07-27)
+
+
+### Features
+
+* **theme:** stronger doodle contrast + higher opacity ([ad258dc](https://github.com/kodingvibes/late.kodingvibes.com/commit/ad258dc2a88274f25cda5c9f0e2547afb917fb7d))
+
 # [1.27.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.26.1...v1.27.0) (2026-07-27)
 
 
