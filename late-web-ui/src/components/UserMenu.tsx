@@ -87,7 +87,7 @@ export function UserMenu() {
         onClick={() => setOpen((v) => !v)}
         className={`flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-lg transition-colors ${
           open
-            ? "bg-accent/15 ring-1 ring-accent/30"
+            ? "bg-accent/15 "
             : isLight
             ? "hover:bg-accent/15"
             : "hover:bg-accent/15"
@@ -108,15 +108,15 @@ export function UserMenu() {
 
       {open && (
         <div
-          className={`absolute right-0 mt-2 w-64 rounded-xl border shadow-accent overflow-hidden z-50 animate-menu-drop backdrop-blur-md ${
+          className={`absolute right-0 mt-2 w-64 rounded-xl shadow-accent overflow-hidden z-50 animate-menu-drop backdrop-blur-md ${
             isLight
-              ? "bg-white/75 border-accent/30"
-              : "bg-surface-3 border-accent/30"
+              ? "bg-white/75 "
+              : "bg-surface-3 "
           }`}
         >
           <div
             className={`flex items-center gap-3 px-3 py-3 border-b ${
-              isLight ? "border-slate-200/60" : "border-slate-800/60"
+              isLight ? "" : ""
             }`}
           >
             <UserAvatar src={user.avatar_url} nick={nick} size="md" />
@@ -182,7 +182,7 @@ export function UserMenu() {
 
           <div
             className={`border-t py-1 ${
-              isLight ? "border-slate-200/60" : "border-slate-800/60"
+              isLight ? "" : ""
             }`}
           >
             <button

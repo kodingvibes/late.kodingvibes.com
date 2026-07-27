@@ -55,14 +55,14 @@ export default function SiteHeader() {
     ? "text-slate-500 hover:text-slate-900 hover:bg-surface-tint-60"
     : "text-slate-400 hover:text-slate-100 hover:bg-accent/15";
   const activeLink =
-    "bg-accent/15 text-accent ring-1 ring-accent/30 shadow-accent";
+    "bg-accent/15 text-accent  shadow-accent";
 
   return (
     <header
       className={`sticky top-0 z-40 backdrop-blur border-b ${
         isLight
-          ? "bg-white/70 border-accent/25"
-          : "bg-surface-3 border-accent/25"
+          ? "bg-white/70 "
+          : "bg-surface-3 "
       }`}
     >
       <div className="max-w-7xl mx-auto px-3 sm:px-6 h-11 sm:h-14 flex items-center justify-between gap-2 sm:gap-3">
@@ -151,10 +151,10 @@ export default function SiteHeader() {
             </button>
             {hamburgerOpen && (
               <div
-                className={`absolute right-0 mt-1 w-48 rounded-xl border shadow-lg backdrop-blur ${
+                className={`absolute right-0 mt-1 w-48 rounded-xl shadow-lg backdrop-blur ${
                   isLight
-                    ? "bg-white/95 border-slate-200"
-                    : "bg-slate-900/95 border-slate-700"
+                    ? "bg-white/95 "
+                    : "bg-slate-900/95 "
                 }`}
               >
                 <Link
@@ -194,7 +194,7 @@ export default function SiteHeader() {
                   <Gamepad2 className="w-4 h-4" />
                   Juegos
                 </Link>
-                <div className={`border-t ${isLight ? "border-slate-200" : "border-slate-700"}`} />
+                <div className={`border-t ${isLight ? "" : ""}`} />
                 <Link
                   to="/profiles"
                   onClick={() => setHamburgerOpen(false)}

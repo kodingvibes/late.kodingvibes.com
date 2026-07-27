@@ -192,8 +192,8 @@ export default function MiniPlayer() {
       <div
         className={
           isPinned
-            ? "bg-surface-3 backdrop-blur border-t border-accent/30 shadow-2xl overflow-hidden flex"
-            : "bg-surface-3 backdrop-blur border border-accent/30 rounded-2xl shadow-2xl overflow-hidden flex"
+            ? "bg-surface-3 backdrop-blur border-t  shadow-2xl overflow-hidden flex"
+            : "bg-surface-3 backdrop-blur  rounded-2xl shadow-2xl overflow-hidden flex"
         }
       >
         {!isPinned && (
@@ -203,7 +203,7 @@ export default function MiniPlayer() {
             onPointerUp={onGripPointerUp}
             onPointerCancel={onGripPointerUp}
             onDoubleClick={onGripDoubleClick}
-            className="hidden sm:flex flex-col items-center justify-center gap-1 w-6 cursor-grab active:cursor-grabbing border-r border-accent/15 hover:bg-accent/15 transition-colors touch-none flex-shrink-0 select-none"
+            className="hidden sm:flex flex-col items-center justify-center gap-1 w-6 cursor-grab active:cursor-grabbing border-r  hover:bg-accent/15 transition-colors touch-none flex-shrink-0 select-none"
             aria-label="Arrastrar para mover · Doble clic para colapsar"
             title="Arrastra · Doble clic para colapsar"
             role="button"
@@ -284,7 +284,7 @@ export default function MiniPlayer() {
                 aria-label={state.playing ? "Pausar" : "Reproducir"}
               >
                 {state.loading ? (
-                  <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span className="w-3 h-3 border-2  border-t-transparent rounded-full animate-spin" />
                 ) : state.playing ? (
                   <Pause className="w-4 h-4" />
                 ) : (
@@ -349,7 +349,7 @@ export default function MiniPlayer() {
                 aria-label={state.playing ? "Pausar" : "Reproducir"}
               >
                 {state.loading ? (
-                  <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span className="w-3 h-3 border-2  border-t-transparent rounded-full animate-spin" />
                 ) : state.playing ? (
                   <Pause className="w-4 h-4" />
                 ) : (

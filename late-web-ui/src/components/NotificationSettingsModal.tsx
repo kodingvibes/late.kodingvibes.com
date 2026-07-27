@@ -84,16 +84,16 @@ export function NotificationSettingsModal({ open, onClose, onSaved }: Notificati
       onClick={onClose}
     >
       <div
-        className={`w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden animate-menu-pop backdrop-blur-md ${
+        className={`w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-menu-pop backdrop-blur-md ${
           isLight
-            ? "bg-white/80 border-accent/15"
-            : "bg-surface-3 border-accent/25"
+            ? "bg-white/80 "
+            : "bg-surface-3 "
         }`}
         onClick={(e) => e.stopPropagation()}
       >
         <div
           className={`flex items-center justify-between px-5 py-3 border-b ${
-            isLight ? "border-accent/15" : "border-accent/20"
+            isLight ? "" : ""
           }`}
         >
           <h2 className="text-base font-semibold flex items-center gap-2">
@@ -121,12 +121,12 @@ export function NotificationSettingsModal({ open, onClose, onSaved }: Notificati
                   key={m}
                   type="button"
                   onClick={() => update("mode", m)}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     prefs.mode === m
-                      ? "bg-accent/20 border-accent text-accent"
+                      ? "bg-accent/20  text-accent"
                       : isLight
-                      ? "border-accent/15 hover:bg-surface-tint-60"
-                      : "border-accent/20 hover:bg-accent/15"
+                      ? " hover:bg-surface-tint-60"
+                      : " hover:bg-accent/15"
                   }`}
                 >
                   {m === "mentions" ? "Menciones" : m === "all" ? "Todo" : "Nada"}
@@ -180,7 +180,7 @@ export function NotificationSettingsModal({ open, onClose, onSaved }: Notificati
 
         <div
           className={`flex justify-end gap-2 px-5 py-3 border-t ${
-            isLight ? "border-accent/15 bg-surface-tint-60" : "border-accent/20 bg-surface-2"
+            isLight ? " bg-surface-tint-60" : " bg-surface-2"
           }`}
         >
           <button

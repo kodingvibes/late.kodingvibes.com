@@ -37,14 +37,14 @@ export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
     >
       <div
         ref={ref}
-        className={`w-full max-w-sm rounded-2xl border shadow-2xl overflow-hidden animate-menu-pop backdrop-blur-md ${
-          isLight ? "bg-white/80 border-accent/15" : "bg-surface-3 border-accent/25"
+        className={`w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-menu-pop backdrop-blur-md ${
+          isLight ? "bg-white/80 " : "bg-surface-3 "
         }`}
         onClick={(e) => e.stopPropagation()}
       >
         <div
           className={`flex items-center gap-2 px-5 py-3 border-b ${
-            isLight ? "border-accent/15" : "border-accent/20"
+            isLight ? "" : ""
           }`}
         >
           <Palette className="w-4 h-4" />
@@ -60,12 +60,12 @@ export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
               <button
                 type="button"
                 onClick={() => setMode("light")}
-                className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   mode === "light"
-                    ? "bg-accent/20 border-accent text-accent"
+                    ? "bg-accent/20  text-accent"
                     : isLight
-                    ? "border-accent/15 hover:bg-surface-tint-60"
-                    : "border-accent/20 hover:bg-accent/15"
+                    ? " hover:bg-surface-tint-60"
+                    : " hover:bg-accent/15"
                 }`}
               >
                 <Sun className="w-4 h-4" />
@@ -74,12 +74,12 @@ export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
               <button
                 type="button"
                 onClick={() => setMode("dark")}
-                className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   mode === "dark"
-                    ? "bg-accent/20 border-accent text-accent"
+                    ? "bg-accent/20  text-accent"
                     : isLight
-                    ? "border-accent/15 hover:bg-surface-tint-60"
-                    : "border-accent/20 hover:bg-accent/15"
+                    ? " hover:bg-surface-tint-60"
+                    : " hover:bg-accent/15"
                 }`}
               >
                 <Moon className="w-4 h-4" />
@@ -100,8 +100,8 @@ export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
                   onClick={() => setAccent(name)}
                   className={`h-10 rounded-lg flex items-center justify-center border-2 transition-all ${
                     accent === name
-                      ? "border-slate-100 scale-110"
-                      : "border-transparent"
+                      ? " scale-110"
+                      : ""
                   }`}
                   style={{ backgroundColor: ACCENT_SWATCHES[name] }}
                   title={name}
@@ -116,7 +116,7 @@ export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
 
         <div
           className={`flex justify-end px-5 py-3 border-t ${
-            isLight ? "border-accent/15 bg-surface-tint-60" : "border-accent/20 bg-surface-2"
+            isLight ? " bg-surface-tint-60" : " bg-surface-2"
           }`}
         >
           <button
