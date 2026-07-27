@@ -1,3 +1,10 @@
+## [1.31.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.31.0...v1.31.1) (2026-07-27)
+
+
+### Bug Fixes
+
+* remove auth from /mad8, skip lobby, auto-load first ROM ([e5f3e9b](https://github.com/kodingvibes/late.kodingvibes.com/commit/e5f3e9bb90b57fdf8adb29a159b31ccb21e95d37))
+
 # [1.31.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.30.5...v1.31.0) (2026-07-27)
 
 
