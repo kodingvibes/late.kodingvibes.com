@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX, X, PictureInPicture2, SkipBack, SkipForward } from "lucide-react";
-import { useRadioState, useRadioEngine, useRadioStreams } from "@/lib/radio-engine";
+import { useRadioState, getEngine, useRadioStreams } from "@/lib/radio-engine";
 import { MarqueeLink } from "./miniplayer/MarqueeLink";
 import { SpectrumCanvas } from "./miniplayer/SpectrumCanvas";
 
@@ -46,17 +46,6 @@ export default function MiniPlayer() {
   // user sees it on every route. It only READS window.RadioEngine — the
   // micro radio is the sole owner of the <audio> element and AudioContext.
   const state = useRadioState();
-  // Capture the engine in a ref so it never changes identity for the
-  // lifetime of this component. The useRadioEngine() hook can throw
-  // if the micro hasn't loaded yet, and the engine reference itself is
-  // a stable singleton on window — passing it as a dep to useEffect
-  // would cause spurious re-runs only if window.RadioEngine swapped at
-  // runtime, which it never does in production.
-  const engineRef = useRef<ReturnType<typeof useRadioEngine> | null>(null);
-  if (engineRef.current === null) {
-    engineRef.current = useRadioEngine();
-  }
-  const engine = engineRef.current;
   const streams = useRadioStreams();
 
   // Drag position (desktop only) — top-left corner of the card in viewport space.
@@ -89,8 +78,10 @@ export default function MiniPlayer() {
     let cancelled = false;
     const tryAttach = () => {
       if (cancelled) return true;
-      const el = engine.getAudioElement();
-      const a = engine.getAnalyser();
+      const e = getEngine();
+      if (!e) return false;
+      const el = e.getAudioElement();
+      const a = e.getAnalyser();
       if (!el || !a) return false;
       setAnalyser(a);
       return true;
@@ -104,7 +95,7 @@ export default function MiniPlayer() {
         clearInterval(t);
       };
     }
-  }, [engine]);
+  }, []);
 
   const isFloating = isDesktop && floating;
   useEffect(() => {
@@ -160,14 +151,14 @@ export default function MiniPlayer() {
     if (streams.length === 0) return;
     const idx = Math.max(0, streams.findIndex(s => s.mount === state.current?.mount));
     const next = streams[(idx + 1) % streams.length];
-    engine.play(next);
-  }, [engine, streams, state.current?.mount]);
+    getEngine()?.play(next);
+  }, [streams, state.current?.mount]);
   const goPrev = useCallback(() => {
     if (streams.length === 0) return;
     const idx = streams.findIndex(s => s.mount === state.current?.mount);
     const prev = streams[(idx <= 0 ? streams.length : idx) - 1];
-    engine.play(prev);
-  }, [engine, streams, state.current?.mount]);
+    getEngine()?.play(prev);
+  }, [streams, state.current?.mount]);
 
   if (!state.current) return null;
 
@@ -250,7 +241,7 @@ export default function MiniPlayer() {
               />
 
               <button
-                onClick={engine.toggleMute}
+                onClick={() => getEngine()?.toggleMute()}
                 className="w-8 h-8 rounded-lg text-slate-300 hover:text-slate-100 hover:bg-accent/15 flex items-center justify-center flex-shrink-0 transition-colors"
                 aria-label={state.muted ? "Activar sonido" : "Silenciar"}
                 title={state.muted ? "Activar sonido" : "Silenciar"}
@@ -264,7 +255,7 @@ export default function MiniPlayer() {
                 max={1}
                 step={0.05}
                 value={state.muted ? 0 : state.volume}
-                onChange={(e) => engine.setVolume(Number(e.target.value))}
+                onChange={(e) => getEngine()?.setVolume(Number(e.target.value))}
                 className="w-16 sm:w-14 md:w-20 accent-accent flex-shrink-0"
                 aria-label="Volumen"
               />
@@ -279,7 +270,7 @@ export default function MiniPlayer() {
               </button>
 
               <button
-                onClick={engine.toggle}
+                onClick={() => getEngine()?.toggle()}
                 className="w-10 h-10 rounded-full bg-accent hover:bg-accent-soft text-white flex items-center justify-center flex-shrink-0 transition-all hover:scale-105 active:scale-95 shadow-md hover:shadow-lg select-none"
                 aria-label={state.playing ? "Pausar" : "Reproducir"}
               >
@@ -344,7 +335,7 @@ export default function MiniPlayer() {
               />
 
               <button
-                onClick={engine.toggle}
+                onClick={() => getEngine()?.toggle()}
                 className="w-9 h-9 rounded-full bg-accent hover:bg-accent-soft text-white flex items-center justify-center flex-shrink-0 transition-all hover:scale-105 active:scale-95 shadow-md select-none"
                 aria-label={state.playing ? "Pausar" : "Reproducir"}
               >
@@ -364,7 +355,7 @@ export default function MiniPlayer() {
                   </div>
 
                   <button
-                    onClick={engine.toggleMute}
+                    onClick={() => getEngine()?.toggleMute()}
                     className="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-accent/15 flex items-center justify-center flex-shrink-0 transition-colors hidden sm:flex"
                     aria-label={state.muted ? "Activar sonido" : "Silenciar"}
                   >
@@ -377,7 +368,7 @@ export default function MiniPlayer() {
                     max={1}
                     step={0.05}
                     value={state.muted ? 0 : state.volume}
-                    onChange={(e) => engine.setVolume(Number(e.target.value))}
+                    onChange={(e) => getEngine()?.setVolume(Number(e.target.value))}
                     className="w-12 sm:w-16 hidden sm:block accent-accent"
                     aria-label="Volumen"
                   />
@@ -392,7 +383,7 @@ export default function MiniPlayer() {
                   </button>
 
                   <button
-                    onClick={engine.stop}
+                    onClick={() => getEngine()?.stop()}
                     className="w-7 h-7 rounded-lg text-slate-500 hover:text-slate-100 hover:bg-accent/15 flex items-center justify-center flex-shrink-0 transition-colors"
                     aria-label="Detener"
                   >

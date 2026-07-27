@@ -42,7 +42,7 @@ const FALLBACK_STATE: RadioState = {
   muted: false,
 };
 
-function getEngine(): RadioEngine | null {
+export function getEngine(): RadioEngine | null {
   return typeof window !== "undefined" ? window.RadioEngine ?? null : null;
 }
 
@@ -52,8 +52,20 @@ export function getRadioState(): RadioState {
 
 export function subscribeRadio(fn: () => void): () => void {
   const e = getEngine();
-  if (!e) return () => {};
-  return e.subscribe(fn);
+  if (e) return e.subscribe(fn);
+  let unsub: (() => void) | null = null;
+  const id = setInterval(() => {
+    const engine = getEngine();
+    if (engine) {
+      clearInterval(id);
+      unsub = engine.subscribe(fn);
+      fn();
+    }
+  }, 100);
+  return () => {
+    clearInterval(id);
+    unsub?.();
+  };
 }
 
 export function useRadioState(): RadioState {
