@@ -58,19 +58,44 @@ export default function SiteHeader() {
   const [hamburgerOpen, setHamburgerOpen] = useState(false);
   const hamburgerRef = useRef<HTMLDivElement>(null);
 
-  // ponytail: the chat microfrontend publishes the latest
-  // global online count on window.ChatEngine.onlineCount. We
-  // poll briefly so we don't miss updates that fire while the
-  // user is on /icecast. The badge only shows on /irc; on other
-  // routes the same icon still works.
+  // ponytail: the chat micro publishes window.ChatEngine.onlineCount
+  // while it's mounted (i.e. while the user is on /irc). The shell
+  // also polls /api/chat/online-count so the badge is populated on
+  // every page from initial load, not only after entering the chat.
+  // We merge both sources: the WS-driven value wins when present,
+  // the REST endpoint fills the gap on every other route.
   useEffect(() => {
+    let cancelled = false;
     const read = () => {
       const c = window.ChatEngine?.onlineCount;
-      setOnlineCount(typeof c === "number" ? c : null);
+      if (typeof c === "number") setOnlineCount(c);
     };
     read();
-    const id = window.setInterval(read, 4000);
-    return () => window.clearInterval(id);
+    const wsId = window.setInterval(read, 4000);
+
+    const fetchRest = async () => {
+      try {
+        const r = await fetch("/api/chat/online-count", { credentials: "omit" });
+        if (!r.ok) return;
+        const j = (await r.json()) as { count?: number };
+        if (cancelled) return;
+        if (typeof j.count === "number") {
+          // only fill in if the WS source hasn't published a live
+          // number yet — once it has, the WS value is authoritative.
+          setOnlineCount((prev) => (prev === null ? j.count! : prev));
+        }
+      } catch {
+        /* endpoint may be down; badge stays "—" */
+      }
+    };
+    fetchRest();
+    const restId = window.setInterval(fetchRest, 15000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(wsId);
+      window.clearInterval(restId);
+    };
   }, []);
 
   const isChat = loc.pathname.startsWith("/irc");
@@ -128,7 +153,8 @@ export default function SiteHeader() {
           </span>
         </Link>
 
-        {/* Desktop nav */}
+        {/* Desktop nav links — hidden on mobile (the hamburger below
+         * exposes the same destinations in a drawer). */}
         <div className="hidden sm:flex items-center gap-1 sm:gap-2">
           <Link
             to="/icecast"
@@ -161,14 +187,16 @@ export default function SiteHeader() {
             <Gamepad2 className="w-4 h-4" />
             <span>Juegos</span>
           </Link>
-
-          <UserMenu />
         </div>
 
-        {/* Mobile: UserMenu + hamburger nav */}
-        <div className="flex sm:hidden items-center gap-1">
+        {/* Right cluster — UserMenu is mounted exactly once for the
+         * whole viewport. On mobile the nickname truncates and the
+         * dropdown still opens. The hamburger sits next to it as a
+         * navigation shortcut; it does NOT carry a UserMenu entry of
+         * its own. */}
+        <div className="flex items-center gap-1">
           <UserMenu />
-          <div ref={hamburgerRef} className="relative">
+          <div ref={hamburgerRef} className="relative sm:hidden">
             <button
               onClick={() => setHamburgerOpen(!hamburgerOpen)}
               aria-label="Menú"
