@@ -146,9 +146,14 @@ input[type="range"] {
  * strings. */
 :root {
   --surface-base: #020617;
+  /* Doodle / wallpaper motifs run currentColor. Dark mode wants a
+   * clear tint that stands off the dark canvas; light mode wants
+   * a deeper tint that reads against slate-50. */
+  --doodle-color: var(--accent-soft, #818cf8);
 }
 :root.theme-light {
   --surface-base: #f8fafc;
+  --doodle-color: var(--accent-primary, #6366f1);
 }
 .bg-surface-1 { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 4%, var(--surface-base, #020617)); }
 .bg-surface-2 { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 8%, var(--surface-base, #020617)); }
@@ -327,6 +332,25 @@ input[type="range"] {
  * .bg-slate-950 / .bg-black. */
 .bg-mf-surface { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 8%, var(--surface-base, #020617)); }
 :root.theme-light .bg-mf-surface { background-color: color-mix(in srgb, var(--accent-primary, #6366f1) 8%, var(--surface-base, #f8fafc)); }
+
+/* ponytail: doodle-wallpaper base. theme-aware currentColor via
+ * --doodle-color (accent-soft in dark, accent-primary in light)
+ * so vector motifs read clearly in either mode without per-micros
+ * duplication. Each micro pairs this base with its own motif set
+ * (see radio's .bg-musical-doodles, chat's .bg-chat-doodles). */
+.bg-doodles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-repeat: repeat;
+  background-size: 240px 240px;
+  opacity: 0.12;
+  color: var(--doodle-color, var(--accent-soft, #818cf8));
+}
+:root.theme-light .bg-doodles {
+  opacity: 0.18;
+}
 
 /* Component classes. */
 .kv-card {
