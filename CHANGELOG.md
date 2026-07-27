@@ -1,3 +1,15 @@
+## [1.30.3](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.30.2...v1.30.3) (2026-07-27)
+
+
+### Bug Fixes
+
+* **shell:** restore microfront layout and clean removed routes from header ([49b9f47](https://github.com/kodingvibes/late.kodingvibes.com/commit/49b9f4757ac363fe45f407016a5519b89b340daf))
+
+
+### Performance Improvements
+
+* **relay:** copy-codec relay stream and on-demand relay manager ([c94a80e](https://github.com/kodingvibes/late.kodingvibes.com/commit/c94a80e7951a05ab8d3c695c238319d00c894357))
+
 ## [1.30.2](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.30.1...v1.30.2) (2026-07-27)
 
 
