@@ -1,3 +1,10 @@
+## [1.30.4](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.30.3...v1.30.4) (2026-07-27)
+
+
+### Bug Fixes
+
+* **shell:** stop injecting dead microfront assets into index.html ([df126be](https://github.com/kodingvibes/late.kodingvibes.com/commit/df126be2dc79873fad0d981f6b0792aa9b4a484d))
+
 ## [1.30.3](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.30.2...v1.30.3) (2026-07-27)
 
 
