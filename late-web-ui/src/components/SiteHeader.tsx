@@ -59,7 +59,7 @@ export default function SiteHeader() {
 
   return (
     <header
-      className={`sticky top-0 z-40 backdrop-blur border-b ${
+      className={`sticky top-0 z-40 backdrop-blur  ${
         isLight
           ? "bg-white/70 "
           : "bg-surface-3 "
@@ -194,7 +194,7 @@ export default function SiteHeader() {
                   <Gamepad2 className="w-4 h-4" />
                   Juegos
                 </Link>
-                <div className={`border-t ${isLight ? "" : ""}`} />
+                <div className={` ${isLight ? "" : ""}`} />
                 <Link
                   to="/profiles"
                   onClick={() => setHamburgerOpen(false)}

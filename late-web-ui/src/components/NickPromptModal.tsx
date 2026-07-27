@@ -68,7 +68,7 @@ export function NickPromptModal({ open, initialValue, onClose, onSaved }: NickPr
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          className={`flex items-center justify-between px-5 py-3 border-b ${
+          className={`flex items-center justify-between px-5 py-3  ${
             isLight ? "" : ""
           }`}
         >
@@ -107,7 +107,7 @@ export function NickPromptModal({ open, initialValue, onClose, onSaved }: NickPr
           {error && <p className="text-rose-400 text-xs">{error}</p>}
         </div>
         <div
-          className={`flex justify-end gap-2 px-5 py-3 border-t ${
+          className={`flex justify-end gap-2 px-5 py-3  ${
             isLight ? " bg-surface-tint-60" : " bg-surface-2"
           }`}
         >

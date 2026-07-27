@@ -92,7 +92,7 @@ export function NotificationSettingsModal({ open, onClose, onSaved }: Notificati
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          className={`flex items-center justify-between px-5 py-3 border-b ${
+          className={`flex items-center justify-between px-5 py-3  ${
             isLight ? "" : ""
           }`}
         >
@@ -179,7 +179,7 @@ export function NotificationSettingsModal({ open, onClose, onSaved }: Notificati
         </div>
 
         <div
-          className={`flex justify-end gap-2 px-5 py-3 border-t ${
+          className={`flex justify-end gap-2 px-5 py-3  ${
             isLight ? " bg-surface-tint-60" : " bg-surface-2"
           }`}
         >

@@ -43,7 +43,7 @@ export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          className={`flex items-center gap-2 px-5 py-3 border-b ${
+          className={`flex items-center gap-2 px-5 py-3  ${
             isLight ? "" : ""
           }`}
         >
@@ -98,7 +98,7 @@ export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
                   key={name}
                   type="button"
                   onClick={() => setAccent(name)}
-                  className={`h-10 rounded-lg flex items-center justify-center border-2 transition-all ${
+                  className={`h-10 rounded-lg flex items-center justify-center  transition-all ${
                     accent === name
                       ? " scale-110"
                       : ""
@@ -115,7 +115,7 @@ export function ThemeSwitcher({ onClose }: ThemeSwitcherProps) {
         </div>
 
         <div
-          className={`flex justify-end px-5 py-3 border-t ${
+          className={`flex justify-end px-5 py-3  ${
             isLight ? " bg-surface-tint-60" : " bg-surface-2"
           }`}
         >

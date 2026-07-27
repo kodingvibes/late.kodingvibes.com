@@ -115,7 +115,7 @@ export function UserMenu() {
           }`}
         >
           <div
-            className={`flex items-center gap-3 px-3 py-3 border-b ${
+            className={`flex items-center gap-3 px-3 py-3  ${
               isLight ? "" : ""
             }`}
           >
@@ -181,7 +181,7 @@ export function UserMenu() {
           </div>
 
           <div
-            className={`border-t py-1 ${
+            className={`py-1 ${
               isLight ? "" : ""
             }`}
           >
