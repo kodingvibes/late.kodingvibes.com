@@ -1,3 +1,10 @@
+# [1.27.0](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.26.1...v1.27.0) (2026-07-27)
+
+
+### Features
+
+* **theme:** add --doodle-color token + .bg-doodles shared base ([ae0d5d6](https://github.com/kodingvibes/late.kodingvibes.com/commit/ae0d5d60dfb3805c7d31592833dc8869ddbb708a))
+
 ## [1.26.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.26.0...v1.26.1) (2026-07-27)
 
 
