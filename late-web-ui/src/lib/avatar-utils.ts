@@ -44,3 +44,40 @@ export function getNickColor(nick: string, mode: "light" | "dark" = "dark"): str
   const palette = mode === "light" ? NICK_PALETTE_LIGHT : NICK_PALETTE_DARK;
   return palette[hashNick(nick) % palette.length];
 }
+
+export const AVATAR_PX = 256;
+
+/**
+ * Downscale an avatar to a square AVATAR_PX WebP before upload.
+ *
+ * The server stores avatars inline (base64 in the users row), and
+ * `avatar_url` rides along on /me, /users/{id} and /users/batch — which
+ * the chat's user_cache hits in bulk. A 2 MB upload becomes ~2.7 MB of
+ * base64 on all of those; at 256px WebP it lands around 15-25 KB.
+ *
+ * `imageOrientation: "from-image"` applies EXIF rotation, so portrait
+ * phone photos don't come out sideways. Animated GIFs collapse to their
+ * first frame — deliberate, an animated avatar can't be stored inline
+ * at a sane size.
+ */
+export async function downscaleAvatar(file: File | Blob): Promise<Blob> {
+  const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+  // Cover-crop: scale so the short edge fills the square, centre the rest.
+  const scale = Math.max(AVATAR_PX / bmp.width, AVATAR_PX / bmp.height);
+  const w = bmp.width * scale;
+  const h = bmp.height * scale;
+  const canvas = document.createElement("canvas");
+  canvas.width = AVATAR_PX;
+  canvas.height = AVATAR_PX;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("canvas 2d context unavailable");
+  ctx.drawImage(bmp, (AVATAR_PX - w) / 2, (AVATAR_PX - h) / 2, w, h);
+  bmp.close();
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("no se pudo procesar la imagen"))),
+      "image/webp",
+      0.85,
+    );
+  });
+}
