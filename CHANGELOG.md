@@ -1,3 +1,10 @@
+## [1.31.2](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.31.1...v1.31.2) (2026-07-28)
+
+
+### Bug Fixes
+
+* **profile:** downscale avatars to 256px before upload ([563179d](https://github.com/kodingvibes/late.kodingvibes.com/commit/563179ddda5e17a130864b4423e3db06cbb58fd5))
+
 ## [1.31.1](https://github.com/kodingvibes/late.kodingvibes.com/compare/v1.31.0...v1.31.1) (2026-07-27)
 
 
